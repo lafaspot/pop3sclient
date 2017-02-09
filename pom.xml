@@ -1,12 +1,12 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>com.github.krdev.popclient</groupId>
+    <groupId>com.github.lafaspot.popclient</groupId>
     <artifactId>popclient</artifactId>
     <version>0.0.1</version>
     <name>pop3sclient</name>
     <packaging>jar</packaging>
-    <url>https://github.com/krdev/pop3sclient</url>
+    <url>https://github.com/lafaspot/pop3sclient</url>
     <description>Asynchronous POP client.</description>
     <prerequisites>
         <maven>3.0</maven>
@@ -25,9 +25,9 @@
         </developer>
     </developers>
     <scm>
-        <developerConnection>scm:git:https://github.com/krdev/pop3sclient.git</developerConnection>
-        <connection>scm:git:https://github.com/krdev/pop3sclient.git</connection>
-        <url>https://github.com/krdev/pop3sclient.git</url>
+        <developerConnection>scm:git:https://github.com/lafaspot/pop3sclient.git</developerConnection>
+        <connection>scm:git:https://github.com/lafaspot/pop3sclient.git</connection>
+        <url>https://github.com/lafaspot/pop3sclient.git</url>
         <tag>pop3sclient-.1</tag>
     </scm>
     <licenses>
