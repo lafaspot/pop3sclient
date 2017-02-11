@@ -106,6 +106,7 @@ public class PopSession {
 
         });
 
+        final PopCommand cmd = new PopCommand(PopCommand.Type.INVALID);
         ChannelFuture future;
         try {
             future = bootstrap.connect(server, port).sync();
@@ -116,10 +117,12 @@ public class PopSession {
         stateRef.compareAndSet(State.NULL, State.COMMAND_SENT);
         sessionChannel = future.channel();
         currentCommandFuture = new PopFuture<PopCommandResponse>(future);
+        currentCommandRef.set(cmd);
         future.addListener(new GenericFutureListener<Future<? super Void>>() {
             @Override
             public void operationComplete(final Future<? super Void> future) throws Exception {
                 if (future.isSuccess()) {
+                	currentCommandFuture.done(new PopCommandResponse(cmd));
                 	/*
                     if (!stateRef.compareAndSet(State.CONNECT_SENT, State.WAIT_FOR_OK)) {
                         logger.error("Connect success in invalid state " + stateRef.get().name(), null);
@@ -130,7 +133,6 @@ public class PopSession {
             }
         });
 
-        currentCommandRef.set(new PopCommand(PopCommand.Type.INVALID));
         return currentCommandFuture;
     }
 
