@@ -55,7 +55,7 @@ public class PopClientProdIT {
         f = sess.execute(new PopCommand(PopCommand.Type.USER).addArgs("krinteg1"));
         System.out.println(f.get());
 
-		f = sess.execute(new PopCommand(PopCommand.Type.PASS).addArgs("heyTester1"));
+		f = sess.execute(new PopCommand(PopCommand.Type.PASS).addArgs("**"));
         System.out.println(f.get());
 
         f = sess.execute(new PopCommand(PopCommand.Type.UIDL));
@@ -83,7 +83,7 @@ public class PopClientProdIT {
         cmd = new PopCommand(PopCommand.Type.USER).addArgs("krinteg1");
         f = sess.execute(cmd);
         System.out.println(f.get());
-        cmd = new PopCommand(PopCommand.Type.PASS).addArgs("heyTester1");
+		cmd = new PopCommand(PopCommand.Type.PASS).addArgs("**");
         f = sess.execute(cmd);
         System.out.println(f.get());
 
