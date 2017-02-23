@@ -3,6 +3,7 @@
  */
 package com.lafaspot.pop.session;
 
+import java.util.LinkedHashSet;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.Nonnull;
@@ -52,14 +53,15 @@ public class PopSession {
     /** The Netty session object. */
     private Channel sessionChannel;
 
-    /** The current command being executed. */
-    private AtomicReference<PopCommand> currentCommandRef = new AtomicReference<PopCommand>();
+    /** current list of commands being processed. */
+	private final LinkedHashSet<PopCommand> commandList = new LinkedHashSet<PopCommand>();
+
     /** The SslContext object. */
     private final SslContext sslContext;
     /** Max line length. */
     private static final int MAX_LINE_LENGTH = 8192;
 
-    /** 
+    /**
      * Constructor for PopSession, used to communicate with a POP server.
      * @param sslContext the ssl context object
      * @param bootstrap the Netty bootstrap object
@@ -117,7 +119,6 @@ public class PopSession {
         stateRef.compareAndSet(State.NULL, State.COMMAND_SENT);
         sessionChannel = future.channel();
         currentCommandFuture = new PopFuture<PopCommandResponse>(future);
-        currentCommandRef.set(cmd);
         future.addListener(new GenericFutureListener<Future<? super Void>>() {
             @Override
             public void operationComplete(final Future<? super Void> future) throws Exception {
@@ -136,7 +137,7 @@ public class PopSession {
         return currentCommandFuture;
     }
 
-    /** 
+    /**
      * Send a POP command to the server.
      * @param command the command to send to server
      * @return the future object for this command
@@ -144,20 +145,12 @@ public class PopSession {
      */
     public PopFuture<PopCommandResponse> execute(@Nonnull final PopCommand command) throws PopException {
 
-        if (!stateRef.compareAndSet(State.CONNECTED, State.COMMAND_SENT)) {
-            throw new PopException(PopException.Type.INVALID_STATE);
-        }
-
-        if (!currentCommandRef.compareAndSet(null, command)) {
-            throw new PopException(PopException.Type.INVALID_STATE);
-        }
-
         final StringBuilder commandToWrite = new StringBuilder();
         commandToWrite.append(command.getCommandLine());
-
-
-        Future f = sessionChannel.writeAndFlush(commandToWrite.toString());
-        currentCommandFuture = new PopFuture<PopCommandResponse>(f);
+        final Future f = sessionChannel.writeAndFlush(commandToWrite.toString());
+        final PopFuture<PopCommandResponse> currentCommandFuture = new PopFuture<PopCommandResponse>(f);
+        command.setCommandFuture(currentCommandFuture);
+        commandList.add(command);
         return currentCommandFuture;
     }
 
@@ -195,23 +188,33 @@ public class PopSession {
      * @param line the response line
      */
     public void onMessage(final String line) {
-    	final PopCommand command = currentCommandRef.get();
-    	if (null == command) {
-    		// bad
+		if (commandList.isEmpty()) {
+			// something went wrong, shutdown and bail out
+			try {
+				disconnect();
+			} catch (PopException e) {
+				// ignore
+			}
+			return;
+		}
+
+		final PopCommand command = (PopCommand) commandList.toArray()[0];
+		final PopFuture<PopCommandResponse> currentCommandFuture = command.getCommandFuture();
+		if (null == currentCommandFuture) {
+			// fatal
+			// something went wrong, shutdown and bail out
+			try {
+				disconnect();
+			} catch (PopException e) {
+				// ignore
+			}
     		return;
     	}
 
 		command.getResponse().parse(line);
     	if (command.getResponse().parseComplete()) {
-    		if (!stateRef.compareAndSet(State.COMMAND_SENT, State.CONNECTED)) {
-				currentCommandFuture.done(new PopException(Type.INTERNAL_FAILURE));
-				return;
-    		}
-			if (currentCommandRef.compareAndSet(command, null)) {
-				currentCommandFuture.done(command.getResponse());
-			} else {
-				currentCommandFuture.done(new PopException(Type.INTERNAL_FAILURE));
-			}
+			commandList.remove(command);
+			currentCommandFuture.done(command.getResponse());
     	}
     }
 
