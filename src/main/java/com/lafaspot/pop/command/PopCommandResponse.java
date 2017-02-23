@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package com.lafaspot.pop.command;
 
@@ -80,6 +80,25 @@ public class PopCommandResponse {
 	 */
 	public PopCommand getCommand() {
 		return command;
+	}
+
+	/**
+	 * Return the String equivalent of the response.
+	 * 
+	 * @return the string value of response
+	 */
+	@Override
+	public String toString() {
+		final StringBuffer buf = new StringBuffer();
+		buf.append(type);
+		if (null != command) {
+			buf.append(command.toString());
+		}
+
+		if (null != lines && lines.size() > 0) {
+			buf.append(lines);
+		}
+		return buf.toString();
 	}
 
 	/**
