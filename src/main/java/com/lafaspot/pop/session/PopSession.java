@@ -39,7 +39,7 @@ import io.netty.util.concurrent.GenericFutureListener;
 public class PopSession {
 
 	/** Future for the current command being executed. */
-	private PopFuture<PopCommandResponse> currentCommandFuture;
+	// private PopFuture<PopCommandResponse> currentCommandFuture;
 
 	/** State of the sesson.*/
     private final AtomicReference<State> stateRef;
@@ -118,12 +118,13 @@ public class PopSession {
 
         stateRef.compareAndSet(State.NULL, State.COMMAND_SENT);
         sessionChannel = future.channel();
-        currentCommandFuture = new PopFuture<PopCommandResponse>(future);
+		PopFuture<PopCommandResponse> connectFuture = new PopFuture<PopCommandResponse>(future);
+		cmd.setCommandFuture(connectFuture);
         future.addListener(new GenericFutureListener<Future<? super Void>>() {
             @Override
             public void operationComplete(final Future<? super Void> future) throws Exception {
                 if (future.isSuccess()) {
-                	currentCommandFuture.done(new PopCommandResponse(cmd));
+					// connectFuture.done(new PopCommandResponse(cmd));
                 	/*
                     if (!stateRef.compareAndSet(State.CONNECT_SENT, State.WAIT_FOR_OK)) {
                         logger.error("Connect success in invalid state " + stateRef.get().name(), null);
@@ -134,7 +135,8 @@ public class PopSession {
             }
         });
 
-        return currentCommandFuture;
+		commandList.add(cmd);
+		return connectFuture;
     }
 
     /**
@@ -167,9 +169,9 @@ public class PopSession {
 
 		if (stateRef.compareAndSet(state, State.NULL)) {
 			Future f = sessionChannel.disconnect();
-			currentCommandFuture = new PopFuture<>(f);
+			PopFuture<PopCommandResponse> disconnectFuture = new PopFuture<PopCommandResponse>(f);
 			sessionChannel = null;
-			return currentCommandFuture;
+			return disconnectFuture;
 		}
 
         throw new PopException(PopException.Type.INVALID_STATE);

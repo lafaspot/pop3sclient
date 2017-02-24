@@ -99,7 +99,7 @@ public class PopCommand {
 				buf.append(arg);
 			}
 		}
-		buf.append("\r\n");
+		buf.append("\n");
 		return buf.toString();
 	}
 
@@ -128,14 +128,7 @@ public class PopCommand {
 	 */
 	@Override
 	public String toString() {
-		final StringBuffer buf = new StringBuffer();
-		buf.append(typeStr);
-
-		if (null != args && !args.isEmpty()) {
-			buf.append(args);
-		}
-
-		return buf.toString();
+		return getCommandLine();
 	}
 
 	/**
