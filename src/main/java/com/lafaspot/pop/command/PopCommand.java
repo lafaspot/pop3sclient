@@ -49,7 +49,7 @@ public class PopCommand {
 	 *            command as string
 	 */
 	public PopCommand(@Nonnull final String typeStr) {
-		this.type = Type.valueOf(typeStr);
+		this.type = Type.valueFromString(typeStr);
 		this.typeStr = typeStr;
 		this.response = new PopCommandResponse(this);
 	}
@@ -167,7 +167,9 @@ public class PopCommand {
 		/** Auth command. */
 		AUTH(13, false),
 		/** Last command. */
-		LAST(14, false);
+		LAST(14, false),
+		/** Generic string command, make it non-multiline. */
+		GENERIC_STRING_COMMAND(15, false);
 
 
 		/** Is this command multiline. */
@@ -195,6 +197,23 @@ public class PopCommand {
 		 */
 		public boolean multiLine() {
 			return multiLine;
+		}
+
+		/**
+		 * Convert string to command type.
+		 * 
+		 * @param typeStr
+		 *            string representing command
+		 * @return command type
+		 */
+		public static Type valueFromString(@Nonnull final String typeStr) {
+			Type ret;
+			try {
+				ret = valueOf(typeStr);
+			} catch (IllegalArgumentException e) {
+				ret = Type.GENERIC_STRING_COMMAND;
+			}
+			return ret;
 		}
 	}
 

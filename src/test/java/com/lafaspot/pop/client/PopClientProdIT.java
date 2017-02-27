@@ -141,6 +141,30 @@ public class PopClientProdIT {
 		sess.disconnect();
 	}
 
+	@Test
+	public void testMultiAuthCommand() throws PopException, InterruptedException, ExecutionException {
+
+	    PopSession sess = client.createSession();
+	    PopFuture<PopCommandResponse> f = sess.connect(server, port, 120000, 120000);
+
+	    f.get();
+		f = sess.execute(new PopCommand("auth").addArgs("login"));
+	    System.out.print(f.get());
+
+		f = sess.execute(new PopCommand("*"));
+	    System.out.println(f.get());
+
+		f = sess.execute(new PopCommand("auth").addArgs("plain"));
+	    System.out.println(f.get());
+
+		f = sess.execute(
+				new PopCommand("a3JzYWxlc0BiaXptYWlsdGVzdC5jb20Aa3JzYWxlc0BiaXptYWlsdGVzdC5jb20AaGV5VGVzdGVyMQ=="));
+	    System.out.println(f.get());
+
+		f = sess.execute(new PopCommand("LIST"));
+	    System.out.println(f.get());
+	}
+
 
 
 
