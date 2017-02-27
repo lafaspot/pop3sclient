@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.github.lafa.popclient</groupId>
     <artifactId>popclient</artifactId>
-    <version>0.0.7</version>
+    <version>0.0.8</version>
     <name>pop3sclient</name>
     <packaging>jar</packaging>
     <url>https://github.com/lafaspot/pop3sclient</url>

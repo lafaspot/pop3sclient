@@ -57,30 +57,37 @@ public class PopClient {
      * @param logManager the log manager
      * @throws PopException on failure
      */
-	public PopClient(final int threads, @Nonnull final LogManager logManager) throws PopException {
+    public PopClient(final int threads, @Nonnull final LogManager logManager) throws PopException {
 
-		this.logManager = logManager;
-		LogContext context = new SessionLogContext("PopClient");
-		this.logger = logManager.getLogger(context);
+        this.logManager = logManager;
+        LogContext context = new SessionLogContext("PopClient");
+        this.logger = logManager.getLogger(context);
 
-		this.bootstrap = new Bootstrap();
-		this.group = new NioEventLoopGroup(threads);
-		try {
-			this.sslContext = SslContextBuilder.forClient().build();
-			bootstrap.group(group);
-			bootstrap.channel(NioSocketChannel.class);
+        this.bootstrap = new Bootstrap();
+        this.group = new NioEventLoopGroup(threads);
+        try {
+            this.sslContext = SslContextBuilder.forClient().build();
+            bootstrap.group(group);
+            bootstrap.channel(NioSocketChannel.class);
             bootstrap.option(ChannelOption.SO_KEEPALIVE, true); // (4)
-		} catch (SSLException e) {
-			throw new PopException(PopException.Type.INTERNAL_FAILURE, e);
-		}
-	}
+        } catch (SSLException e) {
+            throw new PopException(PopException.Type.INTERNAL_FAILURE, e);
+        }
+    }
 
-	/**
-	 * Create PopSession.
-	 * @return PopSession
-	 */
+    /**
+     * Create PopSession.
+     * 
+     * @return PopSession
+     */
     public PopSession createSession() {
         return new PopSession(sslContext, bootstrap, logger);
     }
 
+    /**
+     * Shut down the pop client.
+     */
+    public void shutdown() {
+        this.group.shutdownGracefully();
+    }
 }
