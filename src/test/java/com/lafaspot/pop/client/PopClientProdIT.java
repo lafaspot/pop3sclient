@@ -51,22 +51,19 @@ public class PopClientProdIT {
         PopFuture<PopCommandResponse> f = sess.connect(server, port, 120000, 120000);
 
         f.get();
-        f = sess.execute(new PopCommand(PopCommand.Type.CAPA));
+		f = sess.execute(new PopCommand("CAPA"));
         System.out.print(f.get());
 
-        f = sess.execute(new PopCommand(PopCommand.Type.USER).addArgs("krinteg1"));
+		f = sess.execute(new PopCommand("USER").addArgs("krinteg1"));
         System.out.println(f.get());
 
-		f = sess.execute(new PopCommand(PopCommand.Type.PASS).addArgs("*"));
+		f = sess.execute(new PopCommand("PASS").addArgs("*"));
         System.out.println(f.get());
 
-        f = sess.execute(new PopCommand(PopCommand.Type.UIDL));
+		f = sess.execute(new PopCommand("UIDL"));
         System.out.println(f.get());
 
-        f = sess.execute(new PopCommand(PopCommand.Type.LIST));
-        System.out.println(f.get());
-
-        f = sess.execute(new PopCommand(PopCommand.Type.CAPA));
+		f = sess.execute(new PopCommand("LIST"));
         System.out.println(f.get());
     }
 
@@ -78,23 +75,23 @@ public class PopClientProdIT {
         PopFuture<PopCommandResponse> f = sess.connect(server, port, 120000, 120000);
 		// f.get();
 
-        cmd = new PopCommand(PopCommand.Type.CAPA);
+        cmd = new PopCommand("CAPA");
         System.out.println("firing " + cmd);
         f = sess.execute(cmd);
 		// System.out.println(f.get());
-        cmd = new PopCommand(PopCommand.Type.USER).addArgs("krinteg1");
+        cmd = new PopCommand("USER").addArgs("krinteg1");
 		System.out.println("firing " + cmd);
         f = sess.execute(cmd);
 		// System.out.println(f.get());
-		cmd = new PopCommand(PopCommand.Type.PASS).addArgs("*");
+		cmd = new PopCommand("PASS").addArgs("*");
 		System.out.println("firing " + cmd);
         f = sess.execute(cmd);
 		// System.out.println(f.get());
 
-		PopCommand cmd0 = new PopCommand(PopCommand.Type.UIDL);
-        PopCommand cmd1 = new PopCommand(PopCommand.Type.UIDL);
-        PopCommand cmd2 = new PopCommand(PopCommand.Type.LIST);
-        PopCommand cmd3 = new PopCommand(PopCommand.Type.CAPA);
+		PopCommand cmd0 = new PopCommand("UIDL");
+        PopCommand cmd1 = new PopCommand("UIDL");
+        PopCommand cmd2 = new PopCommand("LIST");
+        PopCommand cmd3 = new PopCommand("CAPA");
 		System.out.println("firing " + cmd0);
 		PopFuture<PopCommandResponse> f0 = sess.execute(cmd0);
         System.out.println("firing " + cmd1);

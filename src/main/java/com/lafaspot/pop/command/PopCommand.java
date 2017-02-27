@@ -49,7 +49,7 @@ public class PopCommand {
 	 *            command as string
 	 */
 	public PopCommand(@Nonnull final String typeStr) {
-		this.type = Type.GENERIC_STRING;
+		this.type = Type.valueOf(typeStr);
 		this.typeStr = typeStr;
 		this.response = new PopCommandResponse(this);
 	}
@@ -167,9 +167,7 @@ public class PopCommand {
 		/** Auth command. */
 		AUTH(13, false),
 		/** Last command. */
-		LAST(14, false),
-		/** Generic command defined by the string. */
-		GENERIC_STRING(15, false);
+		LAST(14, false);
 
 
 		/** Is this command multiline. */
