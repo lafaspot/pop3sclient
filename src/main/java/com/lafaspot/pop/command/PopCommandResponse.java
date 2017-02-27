@@ -50,7 +50,7 @@ public class PopCommandResponse {
 		if (line.trim().startsWith("-ERR")) {
 			parseComplete = true;
 			type = Type.ERR;
-		} else if (line.trim().startsWith("+OK")) {
+		} else if (line.trim().startsWith("+")) {
 			type = Type.OK;
 		} else if (line.trim().equals(".")) {
 			parseComplete = true;
@@ -84,7 +84,7 @@ public class PopCommandResponse {
 
 	/**
 	 * Return the String equivalent of the response.
-	 * 
+	 *
 	 * @return the string value of response
 	 */
 	@Override
