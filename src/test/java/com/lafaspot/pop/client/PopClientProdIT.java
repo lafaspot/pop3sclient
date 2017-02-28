@@ -4,6 +4,8 @@
 package com.lafaspot.pop.client;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.concurrent.ExecutionException;
 
@@ -51,20 +53,32 @@ public class PopClientProdIT {
         PopFuture<PopCommandResponse> f = sess.connect(server, port, 120000, 120000);
 
         f.get();
-		f = sess.execute(new PopCommand("CAPA"));
-        System.out.print(f.get());
+		f = sess.execute(
+				new PopCommand("CAPA", PopCommand.Type.GENERIC_STRING_COMMAND_MULTILINE, new ArrayList<String>()));
+		System.out.println(f.get());
 
-		f = sess.execute(new PopCommand("USER").addArgs("krinteg1"));
+		f = sess.execute(
+				new PopCommand("USER", PopCommand.Type.GENERIC_STRING_COMMAND_SINGLELINE, new ArrayList<String>())
+						.addArgs("krinteg1"));
         System.out.println(f.get());
 
-		f = sess.execute(new PopCommand("PASS").addArgs("*"));
+		f = sess.execute(
+				new PopCommand("PASS", PopCommand.Type.GENERIC_STRING_COMMAND_SINGLELINE,
+						Arrays.asList(new String[] { "*" })));
         System.out.println(f.get());
 
-		f = sess.execute(new PopCommand("UIDL"));
+		f = sess.execute(
+				new PopCommand("UIDL", PopCommand.Type.GENERIC_STRING_COMMAND_SINGLELINE,
+						Arrays.asList(new String[] { "1" })));
         System.out.println(f.get());
 
-		f = sess.execute(new PopCommand("LIST"));
+		f = sess.execute(
+				new PopCommand("LIST", PopCommand.Type.GENERIC_STRING_COMMAND_MULTILINE, new ArrayList<String>()));
         System.out.println(f.get());
+
+		f = sess.execute(
+				new PopCommand("QUIT", PopCommand.Type.GENERIC_STRING_COMMAND_SINGLELINE, new ArrayList<String>()));
+		System.out.println(f.get());
     }
 
     @Test
@@ -75,23 +89,29 @@ public class PopClientProdIT {
         PopFuture<PopCommandResponse> f = sess.connect(server, port, 120000, 120000);
 		// f.get();
 
-        cmd = new PopCommand("CAPA");
+		cmd = new PopCommand("CAPA", PopCommand.Type.GENERIC_STRING_COMMAND_MULTILINE, new ArrayList<String>());
         System.out.println("firing " + cmd);
         f = sess.execute(cmd);
 		// System.out.println(f.get());
-        cmd = new PopCommand("USER").addArgs("krinteg1");
+		cmd = new PopCommand("USER", PopCommand.Type.GENERIC_STRING_COMMAND_SINGLELINE,
+				Arrays.asList(new String[] { "krinteg1" }));
 		System.out.println("firing " + cmd);
         f = sess.execute(cmd);
 		// System.out.println(f.get());
-		cmd = new PopCommand("PASS").addArgs("*");
+		cmd = new PopCommand("PASS", PopCommand.Type.GENERIC_STRING_COMMAND_SINGLELINE,
+				Arrays.asList(new String[] { "*" }));
 		System.out.println("firing " + cmd);
         f = sess.execute(cmd);
 		// System.out.println(f.get());
 
-		PopCommand cmd0 = new PopCommand("UIDL");
-        PopCommand cmd1 = new PopCommand("UIDL");
-        PopCommand cmd2 = new PopCommand("LIST");
-        PopCommand cmd3 = new PopCommand("CAPA");
+		PopCommand cmd0 = new PopCommand("UIDL", PopCommand.Type.GENERIC_STRING_COMMAND_SINGLELINE,
+				Arrays.asList(new String[] { "2" }));
+		PopCommand cmd1 = new PopCommand("UIDL", PopCommand.Type.GENERIC_STRING_COMMAND_MULTILINE,
+				new ArrayList<String>());
+		PopCommand cmd2 = new PopCommand("LIST", PopCommand.Type.GENERIC_STRING_COMMAND_MULTILINE,
+				new ArrayList<String>());
+		PopCommand cmd3 = new PopCommand("CAPA", PopCommand.Type.GENERIC_STRING_COMMAND_MULTILINE,
+				new ArrayList<String>());
 		System.out.println("firing " + cmd0);
 		PopFuture<PopCommandResponse> f0 = sess.execute(cmd0);
         System.out.println("firing " + cmd1);
@@ -103,6 +123,10 @@ public class PopClientProdIT {
         System.out.println(f1.get());
         System.out.println(f2.get());
         System.out.println(f3.get());
+
+		f = sess.execute(
+				new PopCommand("QUIT", PopCommand.Type.GENERIC_STRING_COMMAND_SINGLELINE, new ArrayList<String>()));
+		System.out.println(f.get());
     }
 
 	@Test
@@ -138,6 +162,8 @@ public class PopClientProdIT {
 		System.out.println(f1.get());
 	    System.out.println(f2.get());
 		System.out.println(f3.get());
+
+		sess.execute(new PopCommand(PopCommand.Type.QUIT));
 		sess.disconnect();
 	}
 
@@ -148,21 +174,31 @@ public class PopClientProdIT {
 	    PopFuture<PopCommandResponse> f = sess.connect(server, port, 120000, 120000);
 
 	    f.get();
-		f = sess.execute(new PopCommand("auth").addArgs("login"));
-	    System.out.print(f.get());
+		f = sess.execute(new PopCommand("auth", PopCommand.Type.GENERIC_STRING_COMMAND_SINGLELINE,
+				Arrays.asList(new String[] { "login" })));
+		System.out.println(f.get());
 
-		f = sess.execute(new PopCommand("*"));
-	    System.out.println(f.get());
-
-		f = sess.execute(new PopCommand("auth").addArgs("plain"));
+		f = sess.execute(
+				new PopCommand("*", PopCommand.Type.GENERIC_STRING_COMMAND_SINGLELINE, new ArrayList<String>()));
 	    System.out.println(f.get());
 
 		f = sess.execute(
-				new PopCommand("a3JzYWxlc0BiaXptYWlsdGVzdC5jb20Aa3JzYWxlc0BiaXptYWlsdGVzdC5jb20AaGV5VGVzdGVyMQ=="));
+				new PopCommand("auth", PopCommand.Type.GENERIC_STRING_COMMAND_SINGLELINE, new ArrayList<String>())
+						.addArgs("plain"));
 	    System.out.println(f.get());
 
-		f = sess.execute(new PopCommand("LIST"));
+		f = sess.execute(
+				new PopCommand("a3JzYWxlc0BiaXptYWlsdGVzdC5jb20Aa3JzYWxlc0BiaXptYWlsdGVzdC5jb20AaGV5VGVzdGVyMQ==",
+						PopCommand.Type.GENERIC_STRING_COMMAND_SINGLELINE, new ArrayList<String>()));
 	    System.out.println(f.get());
+
+		f = sess.execute(
+				new PopCommand("LIST", PopCommand.Type.GENERIC_STRING_COMMAND_SINGLELINE, new ArrayList<String>()));
+	    System.out.println(f.get());
+
+		f = sess.execute(
+				new PopCommand("QUIT", PopCommand.Type.GENERIC_STRING_COMMAND_SINGLELINE, new ArrayList<String>()));
+		System.out.println(f.get());
 	}
 
 

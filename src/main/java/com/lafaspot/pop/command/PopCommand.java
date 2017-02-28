@@ -19,7 +19,7 @@ public class PopCommand {
 	/** Command type. */
 	private final Type type;
 	/** Arguments. */
-	private final List<String> args = new ArrayList<String>();
+	private final List<String> args;
 
 	/** Response. */
 	private final PopCommandResponse response;
@@ -39,6 +39,7 @@ public class PopCommand {
 	public PopCommand(@Nonnull final Type type) {
 		this.type = type;
 		this.typeStr = type.name();
+		this.args = new ArrayList<String>();
 		this.response = new PopCommandResponse(this);
 	}
 
@@ -47,12 +48,18 @@ public class PopCommand {
 	 *
 	 * @param typeStr
 	 *            command as string
+	 * @param type
+	 *            comamnd type
+	 * @param args
+	 *            list of arguments
 	 */
-	public PopCommand(@Nonnull final String typeStr) {
-		this.type = Type.valueFromString(typeStr);
+	public PopCommand(@Nonnull final String typeStr, @Nonnull Type type, @Nonnull final List<String> args) {
+		this.type = type;
 		this.typeStr = typeStr;
+		this.args = args;
 		this.response = new PopCommandResponse(this);
 	}
+
 
 	/**
 	 * @return the commandFuture
@@ -169,7 +176,9 @@ public class PopCommand {
 		/** Last command. */
 		LAST(14, false),
 		/** Generic string command, make it non-multiline. */
-		GENERIC_STRING_COMMAND(15, false);
+		GENERIC_STRING_COMMAND_SINGLELINE(15, false),
+		/** Generic string command, make it multiline. */
+		GENERIC_STRING_COMMAND_MULTILINE(15, true);
 
 
 		/** Is this command multiline. */
@@ -201,7 +210,7 @@ public class PopCommand {
 
 		/**
 		 * Convert string to command type.
-		 * 
+		 *
 		 * @param typeStr
 		 *            string representing command
 		 * @return command type
@@ -211,7 +220,7 @@ public class PopCommand {
 			try {
 				ret = valueOf(typeStr);
 			} catch (IllegalArgumentException e) {
-				ret = Type.GENERIC_STRING_COMMAND;
+				ret = Type.GENERIC_STRING_COMMAND_SINGLELINE;
 			}
 			return ret;
 		}
