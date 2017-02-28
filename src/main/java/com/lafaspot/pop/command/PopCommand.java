@@ -53,7 +53,7 @@ public class PopCommand {
 	 * @param args
 	 *            list of arguments
 	 */
-	public PopCommand(@Nonnull final String typeStr, @Nonnull Type type, @Nonnull final List<String> args) {
+	public PopCommand(@Nonnull final String typeStr, @Nonnull final Type type, @Nonnull final List<String> args) {
 		this.type = type;
 		this.typeStr = typeStr;
 		this.args = args;
