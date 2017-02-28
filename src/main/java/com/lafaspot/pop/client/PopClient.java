@@ -4,7 +4,7 @@
 package com.lafaspot.pop.client;
 
 import java.util.Random;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nonnull;
 import javax.net.ssl.SSLException;
@@ -34,9 +34,6 @@ public class PopClient {
     /** instance id used for debug. */
     private final String instanceId = Integer.toString(new Random(System.nanoTime()).nextInt());
 
-    /** counter for sessions. */
-    private AtomicInteger sessionCounter = new AtomicInteger(1);
-
     /** The netty bootstrap. */
     private final Bootstrap bootstrap;
 
@@ -49,7 +46,9 @@ public class PopClient {
     /** The logger. */
     private Logger logger;
 
+    /** The SSL context. */
     private final SslContext sslContext;
+
     /**
      * Constructor to create a new POP client.
      *
@@ -57,30 +56,40 @@ public class PopClient {
      * @param logManager the log manager
      * @throws PopException on failure
      */
-	public PopClient(final int threads, @Nonnull final LogManager logManager) throws PopException {
+    public PopClient(final int threads, @Nonnull final LogManager logManager) throws PopException {
 
-		this.logManager = logManager;
-		LogContext context = new SessionLogContext("PopClient");
-		this.logger = logManager.getLogger(context);
+        this.logManager = logManager;
+        LogContext context = new SessionLogContext("PopClient");
+        this.logger = logManager.getLogger(context);
 
-		this.bootstrap = new Bootstrap();
-		this.group = new NioEventLoopGroup(threads);
-		try {
-			this.sslContext = SslContextBuilder.forClient().build();
-			bootstrap.group(group);
-			bootstrap.channel(NioSocketChannel.class);
-            bootstrap.option(ChannelOption.SO_KEEPALIVE, true); // (4)
-		} catch (SSLException e) {
-			throw new PopException(PopException.Type.INTERNAL_FAILURE, e);
-		}
-	}
-
-	/**
-	 * Create PopSession.
-	 * @return PopSession
-	 */
-    public PopSession createSession() {
-        return new PopSession(sslContext, bootstrap, logger);
+        this.bootstrap = new Bootstrap();
+        this.group = new NioEventLoopGroup(threads);
+        try {
+            this.sslContext = SslContextBuilder.forClient().build();
+            this.bootstrap.group(this.group);
+            this.bootstrap.channel(NioSocketChannel.class);
+            this.bootstrap.option(ChannelOption.SO_KEEPALIVE, true); // (4)
+        } catch (final SSLException e) {
+            throw new PopException(PopException.Type.INTERNAL_FAILURE, e);
+        }
     }
 
+    /**
+     * Create PopSession.
+     *
+     * @return PopSession
+     */
+    public PopSession createSession() {
+        return new PopSession(this.sslContext, this.bootstrap, this.logger);
+    }
+
+    /**
+     * Shut down the pop client.
+     *
+     * @param quietPeriod quiet period to ensure no tasks submitted
+     * @param timeout timeout of shutdown
+     */
+    public void shutdown(final long quietPeriod, final long timeout) {
+        this.group.shutdownGracefully(quietPeriod, timeout, TimeUnit.MILLISECONDS);
+    }
 }
