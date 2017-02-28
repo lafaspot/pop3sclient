@@ -5,7 +5,6 @@ package com.lafaspot.pop.client;
 
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.Nonnull;
 import javax.net.ssl.SSLException;
@@ -49,13 +48,13 @@ public class PopClient {
 
     /** The SSL context. */
     private final SslContext sslContext;
-    
+
     /** The quit period time for shutdown. */
     private static final long SHUTDOWN_QUIET_PERIOD_MILLIS = 5000L;
-    
+
     /** The timeout for shutdown. */
     private static final long SHUTDOWN_TIMEOUT_MILLIS = 30000L;
-    
+
     /**
      * Constructor to create a new POP client.
      *
