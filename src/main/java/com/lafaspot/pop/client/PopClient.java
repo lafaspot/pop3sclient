@@ -49,12 +49,6 @@ public class PopClient {
     /** The SSL context. */
     private final SslContext sslContext;
 
-    /** The quit period time for shutdown. */
-    private static final long SHUTDOWN_QUIET_PERIOD_MILLIS = 5000L;
-
-    /** The timeout for shutdown. */
-    private static final long SHUTDOWN_TIMEOUT_MILLIS = 30000L;
-
     /**
      * Constructor to create a new POP client.
      *
@@ -82,7 +76,7 @@ public class PopClient {
 
     /**
      * Create PopSession.
-     * 
+     *
      * @return PopSession
      */
     public PopSession createSession() {
@@ -91,8 +85,11 @@ public class PopClient {
 
     /**
      * Shut down the pop client.
+     *
+     * @param quietPeriod quiet period to ensure no tasks submitted
+     * @param timeout timeout of shutdown
      */
-    public void shutdown() {
-        this.group.shutdownGracefully(SHUTDOWN_QUIET_PERIOD_MILLIS, SHUTDOWN_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+    public void shutdown(final long quietPeriod, final long timeout) {
+        this.group.shutdownGracefully(quietPeriod, timeout, TimeUnit.MILLISECONDS);
     }
 }
