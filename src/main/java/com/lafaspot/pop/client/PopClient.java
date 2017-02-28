@@ -4,6 +4,7 @@
 package com.lafaspot.pop.client;
 
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.Nonnull;
@@ -34,9 +35,6 @@ public class PopClient {
     /** instance id used for debug. */
     private final String instanceId = Integer.toString(new Random(System.nanoTime()).nextInt());
 
-    /** counter for sessions. */
-    private AtomicInteger sessionCounter = new AtomicInteger(1);
-
     /** The netty bootstrap. */
     private final Bootstrap bootstrap;
 
@@ -49,7 +47,15 @@ public class PopClient {
     /** The logger. */
     private Logger logger;
 
+    /** The SSL context. */
     private final SslContext sslContext;
+    
+    /** The quit period time for shutdown. */
+    private static final long SHUTDOWN_QUIET_PERIOD_MILLIS = 5000L;
+    
+    /** The timeout for shutdown. */
+    private static final long SHUTDOWN_TIMEOUT_MILLIS = 30000L;
+    
     /**
      * Constructor to create a new POP client.
      *
@@ -67,10 +73,10 @@ public class PopClient {
         this.group = new NioEventLoopGroup(threads);
         try {
             this.sslContext = SslContextBuilder.forClient().build();
-            bootstrap.group(group);
-            bootstrap.channel(NioSocketChannel.class);
-            bootstrap.option(ChannelOption.SO_KEEPALIVE, true); // (4)
-        } catch (SSLException e) {
+            this.bootstrap.group(this.group);
+            this.bootstrap.channel(NioSocketChannel.class);
+            this.bootstrap.option(ChannelOption.SO_KEEPALIVE, true); // (4)
+        } catch (final SSLException e) {
             throw new PopException(PopException.Type.INTERNAL_FAILURE, e);
         }
     }
@@ -81,13 +87,13 @@ public class PopClient {
      * @return PopSession
      */
     public PopSession createSession() {
-        return new PopSession(sslContext, bootstrap, logger);
+        return new PopSession(this.sslContext, this.bootstrap, this.logger);
     }
 
     /**
      * Shut down the pop client.
      */
     public void shutdown() {
-        this.group.shutdownGracefully();
+        this.group.shutdownGracefully(SHUTDOWN_QUIET_PERIOD_MILLIS, SHUTDOWN_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
     }
 }
