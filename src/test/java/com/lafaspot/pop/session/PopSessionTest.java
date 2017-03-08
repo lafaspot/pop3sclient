@@ -3,7 +3,6 @@
  */
 package com.lafaspot.pop.session;
 
-import java.net.InetAddress;
 import java.util.concurrent.ExecutionException;
 
 import org.mockito.Mockito;
