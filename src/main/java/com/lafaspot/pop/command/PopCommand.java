@@ -61,15 +61,12 @@ public class PopCommand {
         this.response = new PopCommandResponse(this);
     }
 
-
     /**
      * @return the commandFuture
      */
     public PopFuture<PopCommandResponse> getCommandFuture() {
         return commandFuture;
     }
-
-
 
     /**
      * @param commandFuture
@@ -78,8 +75,6 @@ public class PopCommand {
     public void setCommandFuture(@Nonnull final PopFuture<PopCommandResponse> commandFuture) {
         this.commandFuture = commandFuture;
     }
-
-
 
     /**
      * Add optional arguments.
@@ -181,7 +176,6 @@ public class PopCommand {
         /** Generic string command, make it multiline. */
         GENERIC_STRING_COMMAND_MULTILINE(15, true);
 
-
         /** Is this command multiline. */
         private final boolean multiLine;
         /** Command type. */
@@ -219,8 +213,8 @@ public class PopCommand {
         public static Type valueFromString(@Nonnull final String typeStr) {
             Type ret;
             try {
-                ret = valueOf(typeStr);
-            } catch (IllegalArgumentException e) {
+                ret = valueOf(typeStr.toUpperCase());
+            } catch (final IllegalArgumentException e) {
                 ret = Type.GENERIC_STRING_COMMAND_SINGLELINE;
             }
             return ret;
