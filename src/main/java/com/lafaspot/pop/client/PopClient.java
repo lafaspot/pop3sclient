@@ -40,8 +40,9 @@ public class PopClient {
     /** Event loop group that will serve all channels for IMAP client. */
     private final EventLoopGroup group;
 
-    /** The log manger. */
-    private final LogManager logManager;
+    /** The pop session handling the outgoing session. */
+    private PopSession session;
+
 
     /** The logger. */
     private Logger logger;
@@ -58,7 +59,6 @@ public class PopClient {
      */
     public PopClient(final int threads, @Nonnull final LogManager logManager) throws PopException {
 
-        this.logManager = logManager;
         LogContext context = new SessionLogContext("PopClient");
         this.logger = logManager.getLogger(context);
 
@@ -68,7 +68,7 @@ public class PopClient {
             this.sslContext = SslContextBuilder.forClient().build();
             this.bootstrap.group(this.group);
             this.bootstrap.channel(NioSocketChannel.class);
-            this.bootstrap.option(ChannelOption.SO_KEEPALIVE, true); // (4)
+            this.bootstrap.option(ChannelOption.SO_KEEPALIVE, true);
         } catch (final SSLException e) {
             throw new PopException(PopException.Type.INTERNAL_FAILURE, e);
         }
@@ -80,7 +80,8 @@ public class PopClient {
      * @return PopSession
      */
     public PopSession createSession() {
-        return new PopSession(this.sslContext, this.bootstrap, this.logger);
+        session = new PopSession(this.sslContext, this.bootstrap, this.logger);
+        return session;
     }
 
     /**
