@@ -123,6 +123,7 @@ public class PopSession {
      * @param port to connect to
      * @param connectTimeout timeout value
      * @param inactivityTimeout timeout value
+     * @param autoRead the option
      * @return future object for connect
      * @throws PopException on failure
      */
