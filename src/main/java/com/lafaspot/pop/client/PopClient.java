@@ -3,6 +3,8 @@
  */
 package com.lafaspot.pop.client;
 
+import java.util.Iterator;
+import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -40,10 +42,6 @@ public class PopClient {
     /** Event loop group that will serve all channels for IMAP client. */
     private final EventLoopGroup group;
 
-    /** The pop session handling the outgoing session. */
-    private PopSession session;
-
-
     /** The logger. */
     private Logger logger;
 
@@ -75,13 +73,41 @@ public class PopClient {
     }
 
     /**
+     * Constructor to create a new POP client with the system properties.
+     *
+     * @param properties the bootstrap properties
+     * @param threads number of threads to use
+     * @param logManager the log manager
+     * @throws PopException on failure
+     */
+    public PopClient(final int threads, @Nonnull final LogManager logManager, @Nonnull final Properties properties) throws PopException {
+
+        LogContext context = new SessionLogContext("PopClient");
+        this.logger = logManager.getLogger(context);
+        this.bootstrap = new Bootstrap();
+        this.group = new NioEventLoopGroup(threads);
+        try {
+            this.sslContext = SslContextBuilder.forClient().build();
+            this.bootstrap.group(this.group);
+            this.bootstrap.channel(NioSocketChannel.class);
+            this.bootstrap.option(ChannelOption.SO_KEEPALIVE, true);
+            final Iterator<Object> it = properties.keySet().iterator();
+            while (it.hasNext()) {
+                final ChannelOption obj = (ChannelOption) it.next();
+                this.bootstrap.option(obj, properties.get(obj));
+            }
+        } catch (final SSLException e) {
+            throw new PopException(PopException.Type.INTERNAL_FAILURE, e);
+        }
+    }
+
+    /**
      * Create PopSession.
      *
      * @return PopSession
      */
     public PopSession createSession() {
-        session = new PopSession(this.sslContext, this.bootstrap, this.logger);
-        return session;
+        return new PopSession(this.sslContext, this.bootstrap, this.logger);
     }
 
     /**

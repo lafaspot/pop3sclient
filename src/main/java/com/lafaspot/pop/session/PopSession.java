@@ -53,7 +53,7 @@ public class PopSession {
     private Channel sessionChannel;
 
     /** current list of commands being processed. */
-	private final LinkedHashSet<PopCommand> commandList = new LinkedHashSet<PopCommand>();
+    private final LinkedHashSet<PopCommand> commandList = new LinkedHashSet<PopCommand>();
 
     /** The SslContext object. */
     private final SslContext sslContext;
@@ -94,26 +94,10 @@ public class PopSession {
     /**
      * Returns the channel that the pop client is using to connect to the remote server.
      *
-     * @return the destination channel.
+     * @return the channel used to connect to the remote server or null if the session is not connected.
      */
-    public Channel getDestinationChannel() {
+    public Channel getChannel() {
         return sessionChannel;
-    }
-
-
-    /**
-     * Connect to the specified POP server.
-     *
-     * @param server the server to connect to
-     * @param port to connect to
-     * @param connectTimeout timeout value
-     * @param inactivityTimeout timeout value
-     * @return future object for connect
-     * @throws PopException on failure
-     */
-    public PopFuture<PopCommandResponse> connect(@Nonnull final String server,
-            final int port, final int connectTimeout, final int inactivityTimeout) throws PopException {
-        return connect(server, port, connectTimeout, inactivityTimeout, true);
     }
 
     /**
@@ -123,22 +107,19 @@ public class PopSession {
      * @param port to connect to
      * @param connectTimeout timeout value
      * @param inactivityTimeout timeout value
-     * @param autoRead the option
      * @return future object for connect
      * @throws PopException on failure
      */
-    public PopFuture<PopCommandResponse> connect(@Nonnull final String server, final int port, final int connectTimeout, final int inactivityTimeout,
-            final boolean autoRead) throws PopException {
+    public PopFuture<PopCommandResponse> connect(@Nonnull final String server, final int port, final int connectTimeout, final int inactivityTimeout)
+            throws PopException {
         logger.debug(" +++ connect to  " + server, null);
 
         final PopSession thisSession = this;
         bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connectTimeout);
-        bootstrap.option(ChannelOption.AUTO_READ, autoRead);
         bootstrap.handler(new ChannelInitializer<SocketChannel>() {
             @Override
             protected void initChannel(final SocketChannel ch) throws Exception {
                 ChannelPipeline p = ch.pipeline();
-                //p.addLast(SSL_HANDLER, SslContextBuilder.forClient().build());
                 p.addLast(SSL_HANDLER, sslContext.newHandler(ch.alloc(), server, port));
                 p.addLast(INACTIVITY_HANDLER, new PopInactivityHandler(thisSession, inactivityTimeout, logger));
                 p.addLast(DELIMITER, new DelimiterBasedFrameDecoder(MAX_LINE_LENGTH, Delimiters.lineDelimiter()));
@@ -159,8 +140,8 @@ public class PopSession {
 
         stateRef.compareAndSet(State.NULL, State.CONNECTED);
         sessionChannel = future.channel();
-		PopFuture<PopCommandResponse> connectFuture = new PopFuture<PopCommandResponse>(future);
-		cmd.setCommandFuture(connectFuture);
+        PopFuture<PopCommandResponse> connectFuture = new PopFuture<PopCommandResponse>(future);
+        cmd.setCommandFuture(connectFuture);
         future.addListener(new GenericFutureListener<Future<? super Void>>() {
             @Override
             public void operationComplete(final Future<? super Void> future) throws Exception {
