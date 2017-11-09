@@ -93,8 +93,10 @@ public class PopClient {
             this.bootstrap.option(ChannelOption.SO_KEEPALIVE, true);
             final Iterator<Object> it = properties.keySet().iterator();
             while (it.hasNext()) {
-                final ChannelOption obj = (ChannelOption) it.next();
-                this.bootstrap.option(obj, properties.get(obj));
+                final String obj = (String) it.next();
+                if (obj.equals(ChannelOption.AUTO_READ.name())) {
+                    this.bootstrap.option(ChannelOption.AUTO_READ, (boolean) properties.get(ChannelOption.AUTO_READ.name()));
+                }
             }
         } catch (final SSLException e) {
             throw new PopException(PopException.Type.INTERNAL_FAILURE, e);

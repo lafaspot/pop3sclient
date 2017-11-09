@@ -114,6 +114,10 @@ public class PopSession {
             throws PopException {
         logger.debug(" +++ connect to  " + server, null);
 
+        if (!stateRef.compareAndSet(State.NULL, State.CONNECTED)) {
+            throw new PopException(Type.INVALID_STATE);
+        }
+
         final PopSession thisSession = this;
         bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connectTimeout);
         bootstrap.handler(new ChannelInitializer<SocketChannel>() {
@@ -138,7 +142,6 @@ public class PopSession {
             throw new PopException(Type.CONNECT_FAILURE, e);
         }
 
-        stateRef.compareAndSet(State.NULL, State.CONNECTED);
         sessionChannel = future.channel();
         PopFuture<PopCommandResponse> connectFuture = new PopFuture<PopCommandResponse>(future);
         cmd.setCommandFuture(connectFuture);
@@ -185,17 +188,16 @@ public class PopSession {
      */
     public PopFuture<PopCommandResponse> disconnect() throws PopException {
         final State state = stateRef.get();
-        if (state == State.NULL) {
+        if (state != State.CONNECTED) {
             throw new PopException(PopException.Type.INVALID_STATE);
         }
+        if (stateRef.compareAndSet(state, State.NULL)) {
+            Future f = sessionChannel.disconnect();
 
-		if (stateRef.compareAndSet(state, State.NULL)) {
-			Future f = sessionChannel.disconnect();
-			PopFuture<PopCommandResponse> disconnectFuture = new PopFuture<PopCommandResponse>(f);
-			sessionChannel = null;
-			return disconnectFuture;
-		}
-
+            PopFuture<PopCommandResponse> disconnectFuture = new PopFuture<PopCommandResponse>(f);
+            sessionChannel = null;
+            return disconnectFuture;
+        }
         throw new PopException(PopException.Type.INVALID_STATE);
     }
 
@@ -251,8 +253,6 @@ public class PopSession {
     	/** Null session not connected. */
         NULL,
         /** Session is connected, ready to accept commands. */
-        CONNECTED,
-        /** Command is just being executed, waiting for response. */
-        COMMAND_SENT
+        CONNECTED;
     }
 }
