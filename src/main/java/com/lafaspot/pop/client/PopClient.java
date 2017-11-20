@@ -3,6 +3,8 @@
  */
 package com.lafaspot.pop.client;
 
+import java.util.Iterator;
+import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -40,9 +42,6 @@ public class PopClient {
     /** Event loop group that will serve all channels for IMAP client. */
     private final EventLoopGroup group;
 
-    /** The log manger. */
-    private final LogManager logManager;
-
     /** The logger. */
     private Logger logger;
 
@@ -58,7 +57,6 @@ public class PopClient {
      */
     public PopClient(final int threads, @Nonnull final LogManager logManager) throws PopException {
 
-        this.logManager = logManager;
         LogContext context = new SessionLogContext("PopClient");
         this.logger = logManager.getLogger(context);
 
@@ -68,7 +66,38 @@ public class PopClient {
             this.sslContext = SslContextBuilder.forClient().build();
             this.bootstrap.group(this.group);
             this.bootstrap.channel(NioSocketChannel.class);
-            this.bootstrap.option(ChannelOption.SO_KEEPALIVE, true); // (4)
+            this.bootstrap.option(ChannelOption.SO_KEEPALIVE, true);
+        } catch (final SSLException e) {
+            throw new PopException(PopException.Type.INTERNAL_FAILURE, e);
+        }
+    }
+
+    /**
+     * Constructor to create a new POP client with the system properties.
+     *
+     * @param properties the bootstrap properties
+     * @param threads number of threads to use
+     * @param logManager the log manager
+     * @throws PopException on failure
+     */
+    public PopClient(final int threads, @Nonnull final LogManager logManager, @Nonnull final Properties properties) throws PopException {
+
+        LogContext context = new SessionLogContext("PopClient");
+        this.logger = logManager.getLogger(context);
+        this.bootstrap = new Bootstrap();
+        this.group = new NioEventLoopGroup(threads);
+        try {
+            this.sslContext = SslContextBuilder.forClient().build();
+            this.bootstrap.group(this.group);
+            this.bootstrap.channel(NioSocketChannel.class);
+            this.bootstrap.option(ChannelOption.SO_KEEPALIVE, true);
+            final Iterator<Object> it = properties.keySet().iterator();
+            while (it.hasNext()) {
+                final String obj = (String) it.next();
+                if (obj.equals(ChannelOption.AUTO_READ.name())) {
+                    this.bootstrap.option(ChannelOption.AUTO_READ, (boolean) properties.get(ChannelOption.AUTO_READ.name()));
+                }
+            }
         } catch (final SSLException e) {
             throw new PopException(PopException.Type.INTERNAL_FAILURE, e);
         }

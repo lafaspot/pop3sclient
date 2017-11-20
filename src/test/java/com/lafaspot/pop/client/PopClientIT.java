@@ -3,6 +3,7 @@
  */
 package com.lafaspot.pop.client;
 
+import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -19,6 +20,8 @@ import com.lafaspot.pop.command.PopCommand.Type;
 import com.lafaspot.pop.command.PopCommandResponse;
 import com.lafaspot.pop.exception.PopException;
 import com.lafaspot.pop.session.PopSession;
+
+import io.netty.channel.ChannelOption;
 
 /**
  * @author kraman
@@ -43,6 +46,26 @@ public class PopClientIT {
     }
 
     @Test
+    public void testConnectWithProperties() throws PopException, InterruptedException, ExecutionException {
+        final Properties p = new Properties();
+        p.put(ChannelOption.AUTO_READ, true);
+        final PopClient c = new PopClient(10, logManager, p);
+        PopSession session = c.createSession();
+        Future<PopCommandResponse> f = session.connect(server, port, 30000, 60000);
+
+        f.get();
+        System.out.println("connect is complete, sending USER command");
+        final PopCommand user = new PopCommand(PopCommand.Type.USER);
+        user.addArgs("ashwin@yahoo.com");
+        Future<PopCommandResponse> f2 = session.execute(user);
+        System.out.println("sent USER, waiting for resp.");
+        System.out.println("USER command response: " + f2.get().getLines());
+        session.disconnect();
+
+        System.out.println("testConnectWithProperties DONE");
+    }
+
+    @Test
 	public void testConnect() throws PopException, InterruptedException, ExecutionException {
 		PopSession session = client.createSession();
 		Future<PopCommandResponse> f = session.connect(server, port, 30000, 60000);
@@ -53,7 +76,7 @@ public class PopClientIT {
 		System.out.println("sent capa, waiting for resp.");
 		System.out.println("capa " + f2.get().getLines());
 
-		System.out.println("DONE ");
+        System.out.println("testConnect DONE ");
 	}
 
     @Test
@@ -67,12 +90,10 @@ public class PopClientIT {
 		user.addArgs("krinteg1@yahoo.com");
 		f = session.execute(user);
 		Assert.assertNotNull(f.get());
-
 		PopCommand pass = new PopCommand(Type.PASS);
 		pass.addArgs("**");
 		f = session.execute(pass);
 		Assert.assertNotNull(f.get());
-
 		f = session.execute(new PopCommand(Type.UIDL));
 		System.out.println(f.get().getLines());
 
@@ -81,7 +102,8 @@ public class PopClientIT {
 
 
     @Test (enabled=true)
-	public void testUidlListRetr() throws PopException, InterruptedException, ExecutionException {
+    public void testUidlListRetr() throws PopException, InterruptedException, ExecutionException {
+        System.out.println("Testing testUidlListRetr");
 		final PopSession session = client.createSession();
 
 		Future<PopCommandResponse> f = session.connect(server, port, 30000, 60000);
@@ -112,6 +134,7 @@ public class PopClientIT {
 		System.out.println(f.get().getLines());
 
 		Assert.assertNotNull(session.disconnect());
+        System.out.println("testUidlListRetr DONE");
 	}
 
 }

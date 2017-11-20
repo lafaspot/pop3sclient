@@ -27,7 +27,6 @@ import io.netty.handler.codec.Delimiters;
 import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.codec.string.StringEncoder;
 import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 
@@ -38,10 +37,10 @@ import io.netty.util.concurrent.GenericFutureListener;
  */
 public class PopSession {
 
-	/** Future for the current command being executed. */
-	// private PopFuture<PopCommandResponse> currentCommandFuture;
+    /** Future for the current command being executed. */
+    // private PopFuture<PopCommandResponse> currentCommandFuture;
 
-	/** State of the sesson.*/
+    /** State of the sesson. */
     private final AtomicReference<State> stateRef;
 
     /** Netty bootstrap object. */
@@ -54,12 +53,30 @@ public class PopSession {
     private Channel sessionChannel;
 
     /** current list of commands being processed. */
-	private final LinkedHashSet<PopCommand> commandList = new LinkedHashSet<PopCommand>();
+    private final LinkedHashSet<PopCommand> commandList = new LinkedHashSet<PopCommand>();
 
     /** The SslContext object. */
     private final SslContext sslContext;
     /** Max line length. */
     private static final int MAX_LINE_LENGTH = 8192;
+
+    /** The string identifier for ssl handler. */
+    public static final String SSL_HANDLER = "sslHandler";
+
+    /** The string identifier for inactivity handler. */
+    public static final String INACTIVITY_HANDLER = "inactivityHandler";
+
+    /** The string identifier for delimiter. */
+    public static final String DELIMITER = "delimiter";
+
+    /** The string identifier for encoder. */
+    public static final String ENCODER = "encoder";
+
+    /** The string identifier for decoder. */
+    public static final String DECODER = "decoder";
+
+    /** The string identifier for pop handler. */
+    public static final String POP_HANDLER = "popHandler";
 
     /**
      * Constructor for PopSession, used to communicate with a POP server.
@@ -75,7 +92,17 @@ public class PopSession {
     }
 
     /**
-     * Connect to the specified POP server.
+     * Returns the channel that the pop client is using to connect to the remote server.
+     *
+     * @return the channel used to connect to the remote server or null if the session is not connected.
+     */
+    public Channel getChannel() {
+        return sessionChannel;
+    }
+
+    /**
+     * Connect to the specified POP server with the autoread option.
+     *
      * @param server the server to connect to
      * @param port to connect to
      * @param connectTimeout timeout value
@@ -83,27 +110,26 @@ public class PopSession {
      * @return future object for connect
      * @throws PopException on failure
      */
-    public PopFuture<PopCommandResponse> connect(@Nonnull final String server,
-    		final int port, final int connectTimeout, final int inactivityTimeout) throws PopException {
+    public PopFuture<PopCommandResponse> connect(@Nonnull final String server, final int port, final int connectTimeout, final int inactivityTimeout)
+            throws PopException {
         logger.debug(" +++ connect to  " + server, null);
 
-
+        if (!stateRef.compareAndSet(State.NULL, State.CONNECTED)) {
+            throw new PopException(Type.INVALID_STATE);
+        }
 
         final PopSession thisSession = this;
         bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connectTimeout);
-
         bootstrap.handler(new ChannelInitializer<SocketChannel>() {
             @Override
             protected void initChannel(final SocketChannel ch) throws Exception {
                 ChannelPipeline p = ch.pipeline();
-
-                SslContext ctx2 = SslContextBuilder.forClient().build();
-            	p.addLast("ssl", ctx2.newHandler(ch.alloc(), server, port));
-                p.addLast("inactivityHandler", new PopInactivityHandler(thisSession, inactivityTimeout, logger));
-                p.addLast(new DelimiterBasedFrameDecoder(MAX_LINE_LENGTH, Delimiters.lineDelimiter()));
-                p.addLast(new StringDecoder());
-                p.addLast(new StringEncoder());
-                p.addLast(new PopMessageDecoder(thisSession, logger));
+                p.addLast(SSL_HANDLER, sslContext.newHandler(ch.alloc(), server, port));
+                p.addLast(INACTIVITY_HANDLER, new PopInactivityHandler(thisSession, inactivityTimeout, logger));
+                p.addLast(DELIMITER, new DelimiterBasedFrameDecoder(MAX_LINE_LENGTH, Delimiters.lineDelimiter()));
+                p.addLast(DECODER, new StringDecoder());
+                p.addLast(ENCODER, new StringEncoder());
+                p.addLast(POP_HANDLER, new PopMessageDecoder(thisSession, logger));
             }
 
         });
@@ -116,10 +142,9 @@ public class PopSession {
             throw new PopException(Type.CONNECT_FAILURE, e);
         }
 
-        stateRef.compareAndSet(State.NULL, State.COMMAND_SENT);
         sessionChannel = future.channel();
-		PopFuture<PopCommandResponse> connectFuture = new PopFuture<PopCommandResponse>(future);
-		cmd.setCommandFuture(connectFuture);
+        PopFuture<PopCommandResponse> connectFuture = new PopFuture<PopCommandResponse>(future);
+        cmd.setCommandFuture(connectFuture);
         future.addListener(new GenericFutureListener<Future<? super Void>>() {
             @Override
             public void operationComplete(final Future<? super Void> future) throws Exception {
@@ -162,18 +187,17 @@ public class PopSession {
      * @throws PopException on failure
      */
     public PopFuture<PopCommandResponse> disconnect() throws PopException {
-    	final State state = stateRef.get();
-    	if (state == State.NULL) {
+        final State state = stateRef.get();
+        if (state != State.CONNECTED) {
             throw new PopException(PopException.Type.INVALID_STATE);
-    	}
+        }
+        if (stateRef.compareAndSet(state, State.NULL)) {
+            Future f = sessionChannel.disconnect();
 
-		if (stateRef.compareAndSet(state, State.NULL)) {
-			Future f = sessionChannel.disconnect();
-			PopFuture<PopCommandResponse> disconnectFuture = new PopFuture<PopCommandResponse>(f);
-			sessionChannel = null;
-			return disconnectFuture;
-		}
-
+            PopFuture<PopCommandResponse> disconnectFuture = new PopFuture<PopCommandResponse>(f);
+            sessionChannel = null;
+            return disconnectFuture;
+        }
         throw new PopException(PopException.Type.INVALID_STATE);
     }
 
@@ -229,8 +253,6 @@ public class PopSession {
     	/** Null session not connected. */
         NULL,
         /** Session is connected, ready to accept commands. */
-        CONNECTED,
-        /** Command is just being executed, waiting for response. */
-        COMMAND_SENT
+        CONNECTED;
     }
 }

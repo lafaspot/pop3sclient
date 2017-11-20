@@ -7,8 +7,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Iterator;
+import java.util.Map.Entry;
 import java.util.concurrent.ExecutionException;
 
+import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -22,18 +25,20 @@ import com.lafaspot.pop.exception.PopException;
 import com.lafaspot.pop.session.PopFuture;
 import com.lafaspot.pop.session.PopSession;
 
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelPipeline;
+import io.netty.handler.codec.LineBasedFrameDecoder;
+
 /**
  * @author kraman
  *
  */
 public class PopClientProdIT {
 
-
-    // private final String server = "jpop200006x.mail.ne1.yahoo.com";
-	private final String server = "jpop200002.pop.mail.yahoo.com";
-	private final int port = 995;
+    private final String server = "jpop200002.pop.mail.yahoo.com";
+    private final int port = 995;
     private PopClient client;
-
 
     @BeforeClass
     public void init() throws PopException {
@@ -42,8 +47,118 @@ public class PopClientProdIT {
         final Logger logger = logManager.getLogger(new LogContext(PopClientProdIT.class.getName()) {
         });
         client = new PopClient(10, logManager);
+    }
 
+    @Test
+    public void testChannelPipeline() throws PopException, InterruptedException, ExecutionException {
+        PopSession sess = client.createSession();
+        PopFuture<PopCommandResponse> f = sess.connect(server, port, 120000, 120000);
+        f.get();
+        final Channel ch = sess.getChannel();
+        Assert.assertNotNull(ch);
+        final ChannelPipeline pipe = ch.pipeline();
+        Assert.assertNotNull(pipe);
+        final String[] handlerList = { PopSession.SSL_HANDLER, PopSession.INACTIVITY_HANDLER, PopSession.DELIMITER, PopSession.DECODER,
+                PopSession.ENCODER, PopSession.POP_HANDLER };
+        final Iterator<Entry<String, ChannelHandler>> it = pipe.iterator();
+        int index = 0;
+        while (it.hasNext()) {
+            final Entry<String, ChannelHandler> entry = it.next();
+            Assert.assertNotNull(entry);
+            final String name = entry.getKey();
+            Assert.assertEquals(name, handlerList[index++]);
+            Assert.assertNotNull(entry.getValue());
+        }
+        sess.disconnect();
+    }
 
+    @Test
+    public void testChangeChannelPipeline() throws PopException, InterruptedException, ExecutionException {
+        PopSession sess = client.createSession();
+        PopFuture<PopCommandResponse> f = sess.connect(server, port, 120000, 120000);
+        f.get();
+        final Channel ch = sess.getChannel();
+        Assert.assertNotNull(ch);
+        final ChannelPipeline pipe = ch.pipeline();
+        Assert.assertNotNull(pipe);
+        final String[] handlerList = { PopSession.SSL_HANDLER, PopSession.INACTIVITY_HANDLER, PopSession.DELIMITER, PopSession.DECODER,
+                PopSession.ENCODER, PopSession.POP_HANDLER };
+        final Iterator<Entry<String, ChannelHandler>> it = pipe.iterator();
+        int index = 0;
+        while (it.hasNext()) {
+            final Entry<String, ChannelHandler> entry = it.next();
+            Assert.assertNotNull(entry);
+            final String name = entry.getKey();
+            Assert.assertEquals(name, handlerList[index++]);
+            Assert.assertNotNull(entry.getValue());
+        }
+
+        // Changing the pipeline by removing few handler and adding new handlers.
+        final ChannelHandler newHandler = new LineBasedFrameDecoder(1);
+        pipe.addAfter(PopSession.SSL_HANDLER, "NEW_HANDLER", newHandler);
+        pipe.remove(PopSession.INACTIVITY_HANDLER);
+        pipe.remove(PopSession.DELIMITER);
+        pipe.remove(PopSession.DECODER);
+        pipe.remove(PopSession.ENCODER);
+        pipe.remove(PopSession.POP_HANDLER);
+
+        final String[] newHandlerList = { PopSession.SSL_HANDLER, "NEW_HANDLER" };
+        final Iterator<Entry<String, ChannelHandler>> it2 = pipe.iterator();
+        int index2 = 0;
+        while (it2.hasNext()) {
+            final Entry<String, ChannelHandler> entry = it2.next();
+            Assert.assertNotNull(entry);
+            final String name = entry.getKey();
+            Assert.assertEquals(name, newHandlerList[index2++]);
+            Assert.assertNotNull(entry.getValue());
+        }
+        sess.disconnect();
+    }
+
+    @Test
+    public void testDisconnectDuringChangeChannelPipeline() throws PopException, InterruptedException, ExecutionException {
+        PopSession sess = client.createSession();
+        PopFuture<PopCommandResponse> f = sess.connect(server, port, 120000, 120000);
+        f.get();
+        final Channel ch = sess.getChannel();
+        Assert.assertNotNull(ch);
+        final ChannelPipeline pipe = ch.pipeline();
+        Assert.assertNotNull(pipe);
+        final String[] handlerList = { PopSession.SSL_HANDLER, PopSession.INACTIVITY_HANDLER, PopSession.DELIMITER, PopSession.DECODER,
+                PopSession.ENCODER, PopSession.POP_HANDLER };
+        final Iterator<Entry<String, ChannelHandler>> it = pipe.iterator();
+        int index = 0;
+        while (it.hasNext()) {
+            final Entry<String, ChannelHandler> entry = it.next();
+            Assert.assertNotNull(entry);
+            final String name = entry.getKey();
+            Assert.assertEquals(name, handlerList[index++]);
+            Assert.assertNotNull(entry.getValue());
+        }
+
+        // Changing the pipeline by removing few handlers
+        pipe.remove(PopSession.INACTIVITY_HANDLER);
+        pipe.remove(PopSession.DELIMITER);
+        pipe.remove(PopSession.DECODER);
+        pipe.remove(PopSession.ENCODER);
+        pipe.remove(PopSession.POP_HANDLER);
+
+        // Addition of new handler after disconnection doesn't affect the pipeline.
+        // The individual handlers should act on channel only if it is active.
+        ch.disconnect();
+        final ChannelHandler newHandler = new LineBasedFrameDecoder(1);
+        pipe.addLast("NEW_HANDLER", newHandler);
+
+        final String[] newHandlerList = { PopSession.SSL_HANDLER, "NEW_HANDLER" };
+        final Iterator<Entry<String, ChannelHandler>> it2 = pipe.iterator();
+        int index2 = 0;
+        while (it2.hasNext()) {
+            final Entry<String, ChannelHandler> entry = it2.next();
+            Assert.assertNotNull(entry);
+            final String name = entry.getKey();
+            Assert.assertEquals(name, newHandlerList[index2++]);
+            Assert.assertNotNull(entry.getValue());
+        }
     }
 
     @Test
