@@ -3,6 +3,10 @@
  */
 package com.lafaspot.pop.session;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map.Entry;
 import java.util.concurrent.ExecutionException;
 
 import org.mockito.Mockito;
@@ -18,6 +22,7 @@ import com.lafaspot.pop.exception.PopException;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandler;
 import io.netty.handler.ssl.SslContext;
 
 /**
@@ -90,5 +95,34 @@ public class PopSessionTest {
         Assert.assertNull(testSession.getChannel());
         testSession.connect(server, port, timeout, timeout);
         Assert.assertNotNull(testSession.getChannel());
+    }
+    
+    @Test
+    public void testConnectWithSni() throws InterruptedException, ExecutionException, PopException {
+
+
+        final String server = "localhost";
+        final int port = 933;
+        final int timeout = 1000;
+
+        final PopFuture future = Mockito.mock(PopFuture.class);
+        final PopCommand command = Mockito.mock(PopCommand.class);
+
+        Mockito.when(command.getType()).thenReturn(PopCommand.Type.INVALID);
+        final PopCommandResponse resp = new PopCommandResponse(command);
+
+        final PopSession testSession = new PopSession(globalSslContext, globalBootstrap, globalLogger);
+        final List<String> sniList = new ArrayList<String>();
+        sniList.add("test.pop.mail.yahoo.com");
+
+        Mockito.when(globalBootstrap.connect(Mockito.any(String.class), Mockito.anyInt())).thenReturn(globalConnectFuture);
+        Mockito.when(future.isDone()).thenReturn(true);
+        Mockito.when(future.get()).thenReturn(resp);
+
+        Assert.assertNull(testSession.getChannel());
+        testSession.connect(server, port, timeout, timeout, sniList);
+        Assert.assertNotNull(testSession.getChannel());
+        //final Iterator<Entry<String,ChannelHandler>> iter = testSession.getChannel().pipeline().iterator();
+        //Assert.assertNotNull(iter);        
     }
 }

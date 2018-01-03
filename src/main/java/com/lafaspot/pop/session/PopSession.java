@@ -3,10 +3,17 @@
  */
 package com.lafaspot.pop.session;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.Nonnull;
+import javax.net.ssl.SNIHostName;
+import javax.net.ssl.SNIServerName;
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLParameters;
 
 import com.lafaspot.logfast.logging.Logger;
 import com.lafaspot.pop.command.PopCommand;
@@ -27,6 +34,8 @@ import io.netty.handler.codec.Delimiters;
 import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.codec.string.StringEncoder;
 import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 
@@ -112,57 +121,96 @@ public class PopSession {
      */
     public PopFuture<PopCommandResponse> connect(@Nonnull final String server, final int port, final int connectTimeout, final int inactivityTimeout)
             throws PopException {
-        logger.debug(" +++ connect to  " + server, null);
+    		return connect(server, port, connectTimeout, inactivityTimeout, Arrays.asList(new String[] {}));
+    }
 
-        if (!stateRef.compareAndSet(State.NULL, State.CONNECTED)) {
-            throw new PopException(Type.INVALID_STATE);
-        }
+    /**
+     * Connect to the specified POP server with the autoread option.
+     *
+     * @param server the server to connect to
+     * @param port to connect to
+     * @param connectTimeout timeout value
+     * @param inactivityTimeout timeout value
+     * @param sniList list of server name indicators
+     * @return future object for connect
+     * @throws PopException on failure
+     */
 
-        final PopSession thisSession = this;
-        bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connectTimeout);
-        bootstrap.handler(new ChannelInitializer<SocketChannel>() {
-            @Override
-            protected void initChannel(final SocketChannel ch) throws Exception {
-                ChannelPipeline p = ch.pipeline();
-                p.addLast(SSL_HANDLER, sslContext.newHandler(ch.alloc(), server, port));
-                p.addLast(INACTIVITY_HANDLER, new PopInactivityHandler(thisSession, inactivityTimeout, logger));
-                p.addLast(DELIMITER, new DelimiterBasedFrameDecoder(MAX_LINE_LENGTH, Delimiters.lineDelimiter()));
-                p.addLast(DECODER, new StringDecoder());
-                p.addLast(ENCODER, new StringEncoder());
-                p.addLast(POP_HANDLER, new PopMessageDecoder(thisSession, logger));
-            }
+    public PopFuture<PopCommandResponse> connect(@Nonnull final String server, final int port, final int connectTimeout,
+    		final int inactivityTimeout, @Nonnull final List<String> sniList)
+			throws PopException {
+		logger.debug(" +++ connect to  " + server, null);
 
-        });
+		if (!stateRef.compareAndSet(State.NULL, State.CONNECTED)) {
+			throw new PopException(Type.INVALID_STATE);
+		}
 
-        final PopCommand cmd = new PopCommand(PopCommand.Type.INVALID);
-        ChannelFuture future;
-        try {
-            future = bootstrap.connect(server, port).sync();
-        } catch (InterruptedException e) {
-            throw new PopException(Type.CONNECT_FAILURE, e);
-        }
+		final List<SNIServerName> serverList = new ArrayList<SNIServerName>();
+		if (null != sniList && !sniList.isEmpty()) {
+			try {
+				for (final String sni : sniList) {
+					serverList.add(new SNIHostName(sni));
+				}
+			} catch (IllegalArgumentException iae) {
+				throw new PopException(PopException.Type.INVALID_ARGUMENTS);
+			}
+		}
 
-        sessionChannel = future.channel();
-        PopFuture<PopCommandResponse> connectFuture = new PopFuture<PopCommandResponse>(future);
-        cmd.setCommandFuture(connectFuture);
-        future.addListener(new GenericFutureListener<Future<? super Void>>() {
-            @Override
-            public void operationComplete(final Future<? super Void> future) throws Exception {
-                if (future.isSuccess()) {
+		final PopSession thisSession = this;
+		bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connectTimeout);
+		bootstrap.handler(new ChannelInitializer<SocketChannel>() {
+			@Override
+			protected void initChannel(final SocketChannel ch) throws Exception {
+				final ChannelPipeline pipeline = ch.pipeline();
+
+				if (!serverList.isEmpty()) {
+					final SSLParameters params = new SSLParameters();
+					params.setServerNames(serverList);
+					final SSLEngine engine = SslContextBuilder.forClient().build().newEngine(ch.alloc());
+					engine.setSSLParameters(params);
+					pipeline.addLast(SSL_HANDLER, new SslHandler(engine));
+				} else {
+					pipeline.addLast(SSL_HANDLER, sslContext.newHandler(ch.alloc(), server, port));
+				}
+
+				pipeline.addLast(INACTIVITY_HANDLER, new PopInactivityHandler(thisSession, inactivityTimeout, logger));
+				pipeline.addLast(DELIMITER,
+						new DelimiterBasedFrameDecoder(MAX_LINE_LENGTH, Delimiters.lineDelimiter()));
+				pipeline.addLast(DECODER, new StringDecoder());
+				pipeline.addLast(ENCODER, new StringEncoder());
+				pipeline.addLast(POP_HANDLER, new PopMessageDecoder(thisSession, logger));
+			}
+
+		});
+
+		final PopCommand cmd = new PopCommand(PopCommand.Type.INVALID);
+		ChannelFuture future;
+		try {
+			future = bootstrap.connect(server, port).sync();
+		} catch (InterruptedException e) {
+			throw new PopException(Type.CONNECT_FAILURE, e);
+		}
+
+		sessionChannel = future.channel();
+		PopFuture<PopCommandResponse> connectFuture = new PopFuture<PopCommandResponse>(future);
+		cmd.setCommandFuture(connectFuture);
+		future.addListener(new GenericFutureListener<Future<? super Void>>() {
+			@Override
+			public void operationComplete(final Future<? super Void> future) throws Exception {
+				if (future.isSuccess()) {
 					// connectFuture.done(new PopCommandResponse(cmd));
-                	/*
-                    if (!stateRef.compareAndSet(State.CONNECT_SENT, State.WAIT_FOR_OK)) {
-                        logger.error("Connect success in invalid state " + stateRef.get().name(), null);
-                        return;
-                    }
-                    */
-                }
-            }
-        });
+					/*
+					 * if (!stateRef.compareAndSet(State.CONNECT_SENT, State.WAIT_FOR_OK)) {
+					 * logger.error("Connect success in invalid state " + stateRef.get().name(),
+					 * null); return; }
+					 */
+				}
+			}
+		});
 
 		commandList.add(cmd);
 		return connectFuture;
-    }
+	}
 
     /**
      * Send a POP command to the server.

@@ -3,6 +3,8 @@
  */
 package com.lafaspot.pop.client;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -64,8 +66,59 @@ public class PopClientIT {
 
         System.out.println("testConnectWithProperties DONE");
     }
+    
+    @Test (enabled=false)
+	public void testConnectWithoutSni() throws PopException, InterruptedException, ExecutionException {
+		PopSession session = client.createSession();;
+		Future<PopCommandResponse> f = session.connect("127.0.0.1", 4443, 30000, 60000);
 
-    @Test
+		f.get();
+		System.out.println("conntect is complete, sending capa");
+		Future<PopCommandResponse> f2 = session.execute(new PopCommand(PopCommand.Type.CAPA));
+		System.out.println("sent capa, waiting for resp.");
+		System.out.println("capa " + f2.get().getLines());
+
+        System.out.println("testConnect DONE ");
+	}
+    
+    @Test (enabled=false)
+	public void testConnectWithSni() throws PopException, InterruptedException, ExecutionException {
+		PopSession session = client.createSession();
+		List<String> sni = new ArrayList<String>();
+		sni.add("test1.mail.aol.com");
+		Future<PopCommandResponse> f = session.connect("127.0.0.1", 4443, 30000, 60000, sni);
+
+		f.get();
+		System.out.println("conntect is complete, sending capa");
+		Future<PopCommandResponse> f2 = session.execute(new PopCommand(PopCommand.Type.CAPA));
+		System.out.println("sent capa, waiting for resp.");
+		System.out.println("capa " + f2.get().getLines());
+
+        System.out.println("testConnect DONE ");
+	}
+
+    @Test (enabled=false)
+	public void testConnectWithInvalidSni() throws PopException, InterruptedException, ExecutionException {
+
+		final List<String> sni = new ArrayList<String>();
+		sni.add("a.b.");
+		PopSession session = client.createSession();
+
+		Future<PopCommandResponse> f;
+
+		f = session.connect("127.0.0.1", 4443, 30000, 60000, sni);
+
+		f.get();
+		System.out.println("conntect is complete, sending capa");
+		Future<PopCommandResponse> f2 = session.execute(new PopCommand(PopCommand.Type.CAPA));
+		System.out.println("sent capa, waiting for resp.");
+		System.out.println("capa " + f2.get().getLines());
+
+		System.out.println("testConnect DONE ");
+
+	}
+
+	@Test
 	public void testConnect() throws PopException, InterruptedException, ExecutionException {
 		PopSession session = client.createSession();
 		Future<PopCommandResponse> f = session.connect(server, port, 30000, 60000);

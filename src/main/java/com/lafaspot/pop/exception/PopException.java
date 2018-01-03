@@ -27,29 +27,37 @@ public class PopException extends Exception {
         this.type = type;
     }
 
-    /**
-     * Constructor.
-     * @param failureType type of failure
-     * @param cause error message
-     */
-    public PopException(@Nonnull final Type failureType, @Nullable final Throwable cause) {
-        super(failureType.toString(), cause);
-    }
+	/**
+	 * Constructor.
+	 *
+	 * @param failureType
+	 *            type of failure
+	 * @param cause
+	 *            error message
+	 */
+	public PopException(@Nonnull final Type failureType, @Nullable final Throwable cause) {
+		super(failureType.toString(), cause);
+	}
 
-    /**
-     * Types of PopException.
-     * @author kraman
-     *
-     */
-    public enum Type {
-    	/** Failed to connect to server. */
-        CONNECT_FAILURE,
-        /** Inactivity timeout fired. */
-        TIMEDOUT, PARSE_FAILURE,
-        /** Session in invalid state to process command. */
-        INVALID_STATE,
-        /** Failed to process command - internal failure. */
-        INTERNAL_FAILURE
-    }
+	/**
+	 * Types of PopException.
+	 *
+	 * @author kraman
+	 *
+	 */
+	public enum Type {
+		/** Failed to connect to server. */
+		CONNECT_FAILURE,
+		/** Inactivity timeout fired. */
+		TIMEDOUT,
+		/** Parse failure. */
+		PARSE_FAILURE,
+		/** Session in invalid state to process command. */
+		INVALID_STATE,
+		/** Failed to process command - internal failure. */
+		INTERNAL_FAILURE,
+		/** Invalid arguments. */
+		INVALID_ARGUMENTS
+	}
 
 }
