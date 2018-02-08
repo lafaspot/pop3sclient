@@ -83,7 +83,7 @@ public class PopCommandTest {
      */
     @Test
     public void testCommandTypeMultiLine() {
-        Assert.assertFalse(PopCommand.Type.INVALID.multiLine(), "INVALID command multiLine should match");
+        Assert.assertFalse(PopCommand.Type.INVALID_POP_COMMAND_CONNECT.multiLine(), "INVALID command multiLine should match");
         Assert.assertFalse(PopCommand.Type.USER.multiLine(), "USER command multiLine should match");
         Assert.assertFalse(PopCommand.Type.PASS.multiLine(), "PASS command multiLine should match");
         Assert.assertFalse(PopCommand.Type.STAT.multiLine(), "STAT command multiLine should match");

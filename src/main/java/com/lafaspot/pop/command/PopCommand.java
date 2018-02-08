@@ -141,8 +141,8 @@ public class PopCommand {
      *
      */
     public enum Type {
-        /** Invalid command. */
-        INVALID(0, false),
+        /** Invalid command - used for connect activity. */
+        INVALID_POP_COMMAND_CONNECT(0, false),
         /** User command. */
         USER(1, false),
         /** Pass command. */

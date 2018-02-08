@@ -41,6 +41,7 @@ import io.netty.util.concurrent.GenericFutureListener;
 
 /**
  * The PopSession object, used to conenct and send commands to the server.
+ *
  * @author kraman
  *
  */
@@ -89,6 +90,7 @@ public class PopSession {
 
     /**
      * Constructor for PopSession, used to communicate with a POP server.
+     *
      * @param sslContext the ssl context object
      * @param bootstrap the Netty bootstrap object
      * @param logger the logger object
@@ -121,7 +123,7 @@ public class PopSession {
      */
     public PopFuture<PopCommandResponse> connect(@Nonnull final String server, final int port, final int connectTimeout, final int inactivityTimeout)
             throws PopException {
-    		return connect(server, port, connectTimeout, inactivityTimeout, Arrays.asList(new String[] {}));
+        return connect(server, port, connectTimeout, inactivityTimeout, Arrays.asList(new String[] {}));
     }
 
     /**
@@ -136,94 +138,130 @@ public class PopSession {
      * @throws PopException on failure
      */
 
-    public PopFuture<PopCommandResponse> connect(@Nonnull final String server, final int port, final int connectTimeout,
-    		final int inactivityTimeout, @Nonnull final List<String> sniList)
-			throws PopException {
-		logger.debug(" +++ connect to  " + server, null);
+    public PopFuture<PopCommandResponse> connect(@Nonnull final String server, final int port, final int connectTimeout, final int inactivityTimeout,
+            @Nonnull final List<String> sniList) throws PopException {
+        logger.debug(" +++ connect to  " + server, null);
 
-		if (!stateRef.compareAndSet(State.NULL, State.CONNECTED)) {
-			throw new PopException(Type.INVALID_STATE);
-		}
+        if (!stateRef.compareAndSet(State.NULL, State.CONNECTED)) {
+            throw new PopException(Type.INVALID_STATE);
+        }
 
-		final List<SNIServerName> serverList = new ArrayList<SNIServerName>();
-		if (null != sniList && !sniList.isEmpty()) {
-			try {
-				for (final String sni : sniList) {
-					serverList.add(new SNIHostName(sni));
-				}
-			} catch (IllegalArgumentException iae) {
-				throw new PopException(PopException.Type.INVALID_ARGUMENTS);
-			}
-		}
+        final List<SNIServerName> serverList = new ArrayList<SNIServerName>();
+        if (null != sniList && !sniList.isEmpty()) {
+            try {
+                for (final String sni : sniList) {
+                    serverList.add(new SNIHostName(sni));
+                }
+            } catch (IllegalArgumentException iae) {
+                throw new PopException(PopException.Type.INVALID_ARGUMENTS);
+            }
+        }
 
-		final PopSession thisSession = this;
-		bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connectTimeout);
-		bootstrap.handler(new ChannelInitializer<SocketChannel>() {
-			@Override
-			protected void initChannel(final SocketChannel ch) throws Exception {
-				final ChannelPipeline pipeline = ch.pipeline();
+        final PopSession thisSession = this;
+        bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connectTimeout);
+        bootstrap.handler(new ChannelInitializer<SocketChannel>() {
+            @Override
+            protected void initChannel(final SocketChannel ch) throws Exception {
+                final ChannelPipeline pipeline = ch.pipeline();
+                if (!serverList.isEmpty()) {
+                    final SSLParameters params = new SSLParameters();
+                    params.setServerNames(serverList);
+                    final SSLEngine engine = SslContextBuilder.forClient().build().newEngine(ch.alloc());
+                    engine.setSSLParameters(params);
+                    pipeline.addLast(SSL_HANDLER, new SslHandler(engine));
+                } else {
+                    pipeline.addLast(SSL_HANDLER, sslContext.newHandler(ch.alloc(), server, port));
+                }
 
-				if (!serverList.isEmpty()) {
-					final SSLParameters params = new SSLParameters();
-					params.setServerNames(serverList);
-					final SSLEngine engine = SslContextBuilder.forClient().build().newEngine(ch.alloc());
-					engine.setSSLParameters(params);
-					pipeline.addLast(SSL_HANDLER, new SslHandler(engine));
-				} else {
-					pipeline.addLast(SSL_HANDLER, sslContext.newHandler(ch.alloc(), server, port));
-				}
+                pipeline.addLast(INACTIVITY_HANDLER, new PopInactivityHandler(thisSession, inactivityTimeout, logger));
+                pipeline.addLast(DELIMITER, new DelimiterBasedFrameDecoder(MAX_LINE_LENGTH, Delimiters.lineDelimiter()));
+                pipeline.addLast(DECODER, new StringDecoder());
+                pipeline.addLast(ENCODER, new StringEncoder());
+                pipeline.addLast(POP_HANDLER, new PopMessageDecoder(thisSession, logger));
+            }
+        });
 
-				pipeline.addLast(INACTIVITY_HANDLER, new PopInactivityHandler(thisSession, inactivityTimeout, logger));
-				pipeline.addLast(DELIMITER,
-						new DelimiterBasedFrameDecoder(MAX_LINE_LENGTH, Delimiters.lineDelimiter()));
-				pipeline.addLast(DECODER, new StringDecoder());
-				pipeline.addLast(ENCODER, new StringEncoder());
-				pipeline.addLast(POP_HANDLER, new PopMessageDecoder(thisSession, logger));
-			}
+        final PopCommand cmd = new PopCommand(PopCommand.Type.INVALID_POP_COMMAND_CONNECT);
+        ChannelFuture nettyConnectFuture;
+        PopFuture<PopCommandResponse> connectFuture;
+        try {
+            nettyConnectFuture = bootstrap.connect(server, port); // .sync();
+            sessionChannel = nettyConnectFuture.channel();
+            connectFuture = new PopFuture<PopCommandResponse>(nettyConnectFuture);
+            cmd.setCommandFuture(connectFuture);
+            commandList.add(cmd);
 
-		});
+            // close handling
+            nettyConnectFuture.channel().closeFuture().addListener(new GenericFutureListener<Future<? super Void>>() {
+                @Override
+                public void operationComplete(final Future<? super Void> future) throws Exception {
+                    logger.debug("+++ channel disconneced " + commandList.size(), null);
+                    if (commandList.size() > 0) {
+                        final PopCommand command = (PopCommand) commandList.toArray()[0];
+                        final PopFuture<PopCommandResponse> currentCommandFuture = command.getCommandFuture();
+                        if (null != currentCommandFuture) {
+                            logger.debug("+++ disc marking done  " + currentCommandFuture, null);
+                            currentCommandFuture.done(new PopException(PopException.Type.CHANNEL_DISCONNECTED));
+                        } else {
+                            logger.debug("+++ disc future is null ", null);
+                        }
+                    }
+                }
+            });
 
-		final PopCommand cmd = new PopCommand(PopCommand.Type.INVALID);
-		ChannelFuture future;
-		try {
-			future = bootstrap.connect(server, port).sync();
-		} catch (InterruptedException e) {
-			throw new PopException(Type.CONNECT_FAILURE, e);
-		}
+            // handle connect done
+            nettyConnectFuture.addListener(new GenericFutureListener<Future<? super Void>>() {
+                @Override
+                public void operationComplete(final Future<? super Void> future) throws Exception {
+                    logger.debug("=== channel conneced " + commandList.size(), null);
+                    if (commandList.size() > 0) {
+                        final PopCommand command = (PopCommand) commandList.toArray()[0];
+                        if (command.getType().equals(PopCommand.Type.INVALID_POP_COMMAND_CONNECT)) {
+                            commandList.remove(command);
+                        }
+                        final PopFuture<PopCommandResponse> currentCommandFuture = command.getCommandFuture();
+                        if (null != currentCommandFuture) {
+                            logger.debug("+++ connect marking done  " + currentCommandFuture, null);
+                            currentCommandFuture.done(new PopCommandResponse(command));
+                        } else {
+                            logger.debug("+++ connect future is null ", null);
+                        }
+                    }
+                }
+            });
+            nettyConnectFuture.sync();
+            return connectFuture;
 
-		sessionChannel = future.channel();
-		PopFuture<PopCommandResponse> connectFuture = new PopFuture<PopCommandResponse>(future);
-		cmd.setCommandFuture(connectFuture);
-		future.addListener(new GenericFutureListener<Future<? super Void>>() {
-			@Override
-			public void operationComplete(final Future<? super Void> future) throws Exception {
-				if (future.isSuccess()) {
-					// connectFuture.done(new PopCommandResponse(cmd));
-					/*
-					 * if (!stateRef.compareAndSet(State.CONNECT_SENT, State.WAIT_FOR_OK)) {
-					 * logger.error("Connect success in invalid state " + stateRef.get().name(),
-					 * null); return; }
-					 */
-				}
-			}
-		});
-
-		commandList.add(cmd);
-		return connectFuture;
-	}
+        } catch (InterruptedException e) {
+            throw new PopException(Type.CONNECT_FAILURE, e);
+        }
+    }
 
     /**
      * Send a POP command to the server.
+     *
      * @param command the command to send to server
      * @return the future object for this command
      * @throws PopException on failure
      */
     public PopFuture<PopCommandResponse> execute(@Nonnull final PopCommand command) throws PopException {
 
+        if (sessionChannel == null || !sessionChannel.isActive()) {
+            throw new PopException(PopException.Type.CHANNEL_NOT_CONNECTED);
+        }
+
+        /*
+        if (!commandList.isEmpty()) {
+            // don't support pipelining
+            throw new PopException(PopException.Type.INVALID_STATE);
+        }
+        */
+
         final StringBuilder commandToWrite = new StringBuilder();
         commandToWrite.append(command.getCommandLine());
-        final Future f = sessionChannel.writeAndFlush(commandToWrite.toString());
-        final PopFuture<PopCommandResponse> currentCommandFuture = new PopFuture<PopCommandResponse>(f);
+        final Future<Void> writeFuture = sessionChannel.writeAndFlush(commandToWrite.toString());
+        final PopFuture<PopCommandResponse> currentCommandFuture = new PopFuture<PopCommandResponse>(writeFuture);
+
         command.setCommandFuture(currentCommandFuture);
         commandList.add(command);
         return currentCommandFuture;
@@ -231,6 +269,7 @@ public class PopSession {
 
     /**
      * Disconnect the session, close session and cleanup.
+     *
      * @return the future object for disconnect
      * @throws PopException on failure
      */
@@ -241,7 +280,6 @@ public class PopSession {
         }
         if (stateRef.compareAndSet(state, State.NULL)) {
             Future f = sessionChannel.disconnect();
-
             PopFuture<PopCommandResponse> disconnectFuture = new PopFuture<PopCommandResponse>(f);
             sessionChannel = null;
             return disconnectFuture;
@@ -255,50 +293,63 @@ public class PopSession {
     public void onTimeout() {
         logger.debug("**channel timeout** TH " + Thread.currentThread().getId(), null);
 
+        if (commandList.isEmpty()) {
+            return;
+        }
+
+        final PopCommand command = (PopCommand) commandList.toArray()[0];
+        final PopFuture<PopCommandResponse> currentCommandFuture = command.getCommandFuture();
+        if (null == currentCommandFuture) {
+            return;
+        }
+        currentCommandFuture.done(new PopException(PopException.Type.CHANNEL_DISCONNECTED));
     }
 
     /**
      * Called when response message is being received from the server. Delimiter is \r\n.
+     *
      * @param line the response line
      */
     public void onMessage(final String line) {
-		if (commandList.isEmpty()) {
-			// something went wrong, shutdown and bail out
-			try {
-				disconnect();
-			} catch (PopException e) {
-				// ignore
-			}
-			return;
-		}
+        if (commandList.isEmpty()) {
+            // something went wrong, shutdown and bail out
+            try {
+                disconnect();
+            } catch (PopException e) {
+                // ignore
+            }
+            return;
+        }
 
-		final PopCommand command = (PopCommand) commandList.toArray()[0];
-		final PopFuture<PopCommandResponse> currentCommandFuture = command.getCommandFuture();
-		if (null == currentCommandFuture) {
-			// fatal
-			// something went wrong, shutdown and bail out
-			try {
-				disconnect();
-			} catch (PopException e) {
-				// ignore
-			}
-    		return;
-    	}
+        final PopCommand command = (PopCommand) commandList.toArray()[0];
+        final PopFuture<PopCommandResponse> currentCommandFuture = command.getCommandFuture();
+        if (null == currentCommandFuture) {
+            // fatal
+            // something went wrong, shutdown and bail out
+            try {
+                disconnect();
+            } catch (PopException e) {
+                // ignore
+            }
+            return;
+        }
 
-		command.getResponse().parse(line);
-    	if (command.getResponse().parseComplete()) {
-			commandList.remove(command);
-			currentCommandFuture.done(command.getResponse());
-    	}
+        command.getResponse().parse(line);
+        if (command.getResponse().parseComplete()) {
+            commandList.remove(command);
+            currentCommandFuture.done(command.getResponse());
+        }
     }
+
 
     /**
      * States of PopSession.
+     *
      * @author kraman
      *
      */
     public enum State {
-    	/** Null session not connected. */
+        /** Null session not connected. */
         NULL,
         /** Session is connected, ready to accept commands. */
         CONNECTED;

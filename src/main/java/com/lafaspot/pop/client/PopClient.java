@@ -3,7 +3,6 @@
  */
 package com.lafaspot.pop.client;
 
-import java.util.Iterator;
 import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -91,13 +90,15 @@ public class PopClient {
             this.bootstrap.group(this.group);
             this.bootstrap.channel(NioSocketChannel.class);
             this.bootstrap.option(ChannelOption.SO_KEEPALIVE, true);
-            final Iterator<Object> it = properties.keySet().iterator();
-            while (it.hasNext()) {
-                final String obj = (String) it.next();
-                if (obj.equals(ChannelOption.AUTO_READ.name())) {
-                    this.bootstrap.option(ChannelOption.AUTO_READ, (boolean) properties.get(ChannelOption.AUTO_READ.name()));
-                }
+
+            final String autoReadVal =  properties.getProperty(ChannelOption.AUTO_READ.name());
+            if (null != autoReadVal) {
+                this.bootstrap.option(ChannelOption.AUTO_READ, Boolean.valueOf(autoReadVal));
+            } else {
+                logger.debug(" NO auto read", null);
             }
+
+
         } catch (final SSLException e) {
             throw new PopException(PopException.Type.INTERNAL_FAILURE, e);
         }

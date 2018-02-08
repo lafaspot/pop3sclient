@@ -4,9 +4,7 @@
 package com.lafaspot.pop.session;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map.Entry;
 import java.util.concurrent.ExecutionException;
 
 import org.mockito.Mockito;
@@ -22,7 +20,6 @@ import com.lafaspot.pop.exception.PopException;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelHandler;
 import io.netty.handler.ssl.SslContext;
 
 /**
@@ -57,10 +54,12 @@ public class PopSessionTest {
         final int port = 933;
         final int timeout = 1000;
 
+        final ChannelFuture closeFuture = Mockito.mock(ChannelFuture.class);
+        final Channel connectedChannel = Mockito.mock(Channel.class);
         final PopFuture future = Mockito.mock(PopFuture.class);
         final PopCommand command = Mockito.mock(PopCommand.class);
 
-        Mockito.when(command.getType()).thenReturn(PopCommand.Type.INVALID);
+        Mockito.when(command.getType()).thenReturn(PopCommand.Type.INVALID_POP_COMMAND_CONNECT);
         final PopCommandResponse resp = new PopCommandResponse(command);
 
         final PopSession testSession = new PopSession(globalSslContext, globalBootstrap, globalLogger);
@@ -68,6 +67,9 @@ public class PopSessionTest {
         Mockito.when(globalBootstrap.connect(Mockito.any(String.class), Mockito.anyInt())).thenReturn(globalConnectFuture);
         Mockito.when(future.isDone()).thenReturn(true);
         Mockito.when(future.get()).thenReturn(resp);
+        Mockito.when(globalConnectFuture.channel()).thenReturn(connectedChannel);
+        Mockito.when(connectedChannel.closeFuture()).thenReturn(closeFuture);
+
 
         PopFuture f = testSession.connect(server, port, timeout, timeout);
         Assert.assertNotNull(f);
@@ -80,15 +82,20 @@ public class PopSessionTest {
         final int port = 933;
         final int timeout = 1000;
 
+        final ChannelFuture closeFuture = Mockito.mock(ChannelFuture.class);
+        final Channel connectedChannel = Mockito.mock(Channel.class);
         final PopFuture future = Mockito.mock(PopFuture.class);
         final PopCommand command = Mockito.mock(PopCommand.class);
 
-        Mockito.when(command.getType()).thenReturn(PopCommand.Type.INVALID);
+        Mockito.when(command.getType()).thenReturn(PopCommand.Type.INVALID_POP_COMMAND_CONNECT);
         final PopCommandResponse resp = new PopCommandResponse(command);
 
         final PopSession testSession = new PopSession(globalSslContext, globalBootstrap, globalLogger);
 
         Mockito.when(globalBootstrap.connect(Mockito.any(String.class), Mockito.anyInt())).thenReturn(globalConnectFuture);
+        Mockito.when(globalConnectFuture.channel()).thenReturn(connectedChannel);
+        Mockito.when(connectedChannel.closeFuture()).thenReturn(closeFuture);
+
         Mockito.when(future.isDone()).thenReturn(true);
         Mockito.when(future.get()).thenReturn(resp);
 
@@ -96,7 +103,7 @@ public class PopSessionTest {
         testSession.connect(server, port, timeout, timeout);
         Assert.assertNotNull(testSession.getChannel());
     }
-    
+
     @Test
     public void testConnectWithSni() throws InterruptedException, ExecutionException, PopException {
 
@@ -105,10 +112,12 @@ public class PopSessionTest {
         final int port = 933;
         final int timeout = 1000;
 
+        final ChannelFuture closeFuture = Mockito.mock(ChannelFuture.class);
+        final Channel connectedChannel = Mockito.mock(Channel.class);
         final PopFuture future = Mockito.mock(PopFuture.class);
         final PopCommand command = Mockito.mock(PopCommand.class);
 
-        Mockito.when(command.getType()).thenReturn(PopCommand.Type.INVALID);
+        Mockito.when(command.getType()).thenReturn(PopCommand.Type.INVALID_POP_COMMAND_CONNECT);
         final PopCommandResponse resp = new PopCommandResponse(command);
 
         final PopSession testSession = new PopSession(globalSslContext, globalBootstrap, globalLogger);
@@ -116,6 +125,8 @@ public class PopSessionTest {
         sniList.add("test.pop.mail.yahoo.com");
 
         Mockito.when(globalBootstrap.connect(Mockito.any(String.class), Mockito.anyInt())).thenReturn(globalConnectFuture);
+        Mockito.when(globalConnectFuture.channel()).thenReturn(connectedChannel);
+        Mockito.when(connectedChannel.closeFuture()).thenReturn(closeFuture);
         Mockito.when(future.isDone()).thenReturn(true);
         Mockito.when(future.get()).thenReturn(resp);
 
@@ -123,6 +134,6 @@ public class PopSessionTest {
         testSession.connect(server, port, timeout, timeout, sniList);
         Assert.assertNotNull(testSession.getChannel());
         //final Iterator<Entry<String,ChannelHandler>> iter = testSession.getChannel().pipeline().iterator();
-        //Assert.assertNotNull(iter);        
+        //Assert.assertNotNull(iter);
     }
 }
