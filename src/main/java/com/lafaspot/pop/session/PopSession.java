@@ -191,6 +191,31 @@ public class PopSession {
             cmd.setCommandFuture(connectFuture);
             commandList.add(cmd);
 
+
+            // handle connect done
+            nettyConnectFuture.addListener(new GenericFutureListener<Future<? super Void>>() {
+                @Override
+                public void operationComplete(final Future<? super Void> future) throws Exception {
+                    logger.debug("=== channel conneced " + commandList.size(), null);
+                    if (commandList.size() > 0) {
+                        final PopCommand command = (PopCommand) commandList.toArray()[0];
+                        if (command.getType().equals(PopCommand.Type.INVALID_POP_COMMAND_CONNECT)) {
+                            // wait for +OK from server to declare command complete
+                            //commandList.remove(command);
+                        }
+                        final PopFuture<PopCommandResponse> currentCommandFuture = command.getCommandFuture();
+                        if (null != currentCommandFuture) {
+                            logger.debug("+++ connect marking done  " + currentCommandFuture, null);
+                            // CONNECT action is not done until we receive the first +OK response from server
+                            //currentCommandFuture.done(new PopCommandResponse(command));
+                        } else {
+                            logger.debug("+++ connect future is null ", null);
+                        }
+                    }
+                }
+            });
+
+
             // close handling
             nettyConnectFuture.channel().closeFuture().addListener(new GenericFutureListener<Future<? super Void>>() {
                 @Override
@@ -204,27 +229,6 @@ public class PopSession {
                             currentCommandFuture.done(new PopException(PopException.Type.CHANNEL_DISCONNECTED));
                         } else {
                             logger.debug("+++ disc future is null ", null);
-                        }
-                    }
-                }
-            });
-
-            // handle connect done
-            nettyConnectFuture.addListener(new GenericFutureListener<Future<? super Void>>() {
-                @Override
-                public void operationComplete(final Future<? super Void> future) throws Exception {
-                    logger.debug("=== channel conneced " + commandList.size(), null);
-                    if (commandList.size() > 0) {
-                        final PopCommand command = (PopCommand) commandList.toArray()[0];
-                        if (command.getType().equals(PopCommand.Type.INVALID_POP_COMMAND_CONNECT)) {
-                            commandList.remove(command);
-                        }
-                        final PopFuture<PopCommandResponse> currentCommandFuture = command.getCommandFuture();
-                        if (null != currentCommandFuture) {
-                            logger.debug("+++ connect marking done  " + currentCommandFuture, null);
-                            currentCommandFuture.done(new PopCommandResponse(command));
-                        } else {
-                            logger.debug("+++ connect future is null ", null);
                         }
                     }
                 }
@@ -259,6 +263,7 @@ public class PopSession {
 
         final StringBuilder commandToWrite = new StringBuilder();
         commandToWrite.append(command.getCommandLine());
+
         final Future<Void> writeFuture = sessionChannel.writeAndFlush(commandToWrite.toString());
         final PopFuture<PopCommandResponse> currentCommandFuture = new PopFuture<PopCommandResponse>(writeFuture);
 
@@ -296,13 +301,13 @@ public class PopSession {
         if (commandList.isEmpty()) {
             return;
         }
-
         final PopCommand command = (PopCommand) commandList.toArray()[0];
         final PopFuture<PopCommandResponse> currentCommandFuture = command.getCommandFuture();
         if (null == currentCommandFuture) {
             return;
         }
         currentCommandFuture.done(new PopException(PopException.Type.CHANNEL_DISCONNECTED));
+
     }
 
     /**

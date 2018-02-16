@@ -62,43 +62,101 @@ public class PopClientIT {
         f.get();
         System.out.println("connect is complete, sending USER command");
         final PopCommand user = new PopCommand(PopCommand.Type.USER);
-        user.addArgs("ashwin@yahoo.com");
+        user.addArgs("krinteg2@yahoo.com");
         Future<PopCommandResponse> f2 = session.execute(user);
-        System.out.println("sent USER, waiting for resp.");
-        System.out.println("USER command response: " + f2.get().getLines());
         session.disconnect();
-
         System.out.println("testConnectWithProperties DONE");
     }
 
+    /**
+     * Run Server as:
+     * openssl s_server -key key.pem -cert cert.pem -accept 9995 -tlsextdebug
+     * @throws PopException
+     * @throws InterruptedException
+     * @throws ExecutionException
+     */
     @Test(enabled = true, expectedExceptions = ExecutionException.class, expectedExceptionsMessageRegExp = ".*CHANNEL_DISCONNECTED.*")
     public void testConnectWithoutSni() throws PopException, InterruptedException, ExecutionException {
         PopSession session = client.createSession();
+        int c;
+        PopCommandResponse r;
 
         Future<PopCommandResponse> f = session.connect("127.0.0.1", 9995, 30000, 60000);
-        f.get();
-        System.out.println("conntect is complete, sending capa");
-        Future<PopCommandResponse> f2 = session.execute(new PopCommand(PopCommand.Type.CAPA));
-        System.out.println("sent capa, waiting for resp.");
-        System.out.println("capa " + f2.get().getLines());
-        System.out.println("testConnect DONE ");
+        c=0;
+        while (c++ < 10) {
+            if (f.isDone()) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+        Assert.assertTrue(f.isDone(), "connect command not done");
+        r = f.get();
+       Assert.assertTrue(r.isOk(), "connect command failed");
+
+
+        f = session.execute(new PopCommand(PopCommand.Type.CAPA));
+        c=0;
+        while (c++ < 10) {
+            if (f.isDone()) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+        Assert.assertTrue(f.isDone(), "capa command not done");
+        r = f.get();
+
+        Assert.fail("Should not come here");
     }
 
+
+    /**
+     * Run server as :
+     * openssl s_server -key key.pem -cert cert.pem -accept 9995 -tlsextdebug
+     * @throws PopException
+     * @throws InterruptedException
+     * @throws ExecutionException
+     */
     @Test(enabled = true, expectedExceptions = ExecutionException.class, expectedExceptionsMessageRegExp = ".*CHANNEL_DISCONNECTED.*")
     public void testConnectWithSni() throws PopException, InterruptedException, ExecutionException {
         PopSession session = client.createSession();
         List<String> sni = new ArrayList<String>();
         sni.add("test1.mail.aol.com");
+
+        int c;
+        PopCommandResponse r;
         Future<PopCommandResponse> f = session.connect("127.0.0.1", 9995, 30000, 60000, sni);
+        c=0;
+        while (c++ < 10) {
+            if (f.isDone()) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+        Assert.assertTrue(f.isDone(), "connect command not done");
+        r = f.get();
+       Assert.assertTrue(r.isOk(), "connect command failed");
 
-        f.get();
-        System.out.println("conntect is complete, sending capa");
-        Future<PopCommandResponse> f2 = session.execute(new PopCommand(PopCommand.Type.CAPA));
-        System.out.println("sent capa, waiting for resp.");
-        System.out.println("capa " + f2.get().getLines());
-
-        System.out.println("testConnect DONE ");
+        f = session.execute(new PopCommand(PopCommand.Type.CAPA));
+        c=0;
+        while (c++ < 10) {
+            if (f.isDone()) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+        Assert.assertTrue(f.isDone(), "connect command not done");
+        r = f.get();
+        Assert.fail("Should not have come here");
     }
+
+
+    /**
+     * Run server as :
+     * openssl s_server -key key.pem -cert cert.pem -accept 9995 -tlsextdebug
+     * @throws PopException
+     * @throws InterruptedException
+     * @throws ExecutionException
+     */
 
     @Test(enabled = true, expectedExceptions = PopException.class, expectedExceptionsMessageRegExp = ".*INVALID_ARGUMENTS.*")
     public void testConnectWithInvalidSni() throws PopException, InterruptedException, ExecutionException {
@@ -108,16 +166,31 @@ public class PopClientIT {
         PopSession session = client.createSession();
 
         Future<PopCommandResponse> f;
+        int c;
+        PopCommandResponse r;
 
-        f = session.connect("127.0.0.1", 9995, 30000, 60000, sni);
+        f = session.connect("127.0.0.1", 9995, 30000, 60000, sni); c=0;
+        while (c++ < 10) {
+            if (f.isDone()) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+        Assert.assertTrue(f.isDone(), "connect command not done");
+        r = f.get();
+       Assert.assertTrue(r.isOk(), "connect command failed");
 
-        f.get();
-        System.out.println("conntect is complete, sending capa");
-        Future<PopCommandResponse> f2 = session.execute(new PopCommand(PopCommand.Type.CAPA));
-        System.out.println("sent capa, waiting for resp.");
-        System.out.println("capa " + f2.get().getLines());
-
-        System.out.println("testConnect DONE ");
+        f = session.execute(new PopCommand(PopCommand.Type.CAPA));
+        c=0;
+        while (c++ < 10) {
+            if (f.isDone()) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+        Assert.assertTrue(f.isDone(), "capa command not done");
+        r = f.get();
+        Assert.fail("Should not have come here.");
 
     }
 
@@ -127,10 +200,19 @@ public class PopClientIT {
         PopSession session = client.createSession();
         Future<PopCommandResponse> f = session.connect(server, port, 30000, 60000);
         System.out.println("connect sent, waiting on get");
-        if (f.isDone()) {
-            System.out.println("connect sent and done, waiting on get");
-            f.get();
+
+        int i=0;
+        while (i++ < 10) {
+            if (f.isDone()) {
+                System.out.println("connect sent and done, waiting on get");
+                PopCommandResponse r = f.get();
+                System.out.println("Got connect response " + r.getLines());
+                break;
+            }
+            Thread.sleep(100);
         }
+
+
         System.out.println("conntect is complete, sending capa");
         Future<PopCommandResponse> f2 = session.execute(new PopCommand(PopCommand.Type.CAPA));
         System.out.println("sent capa, waiting for resp. " + f2);
@@ -145,23 +227,80 @@ public class PopClientIT {
 
     @Test
     public void testUidl() throws PopException, InterruptedException, ExecutionException {
+        System.out.println("Testing testUidlListRetr");
         final PopSession session = client.createSession();
 
-        Future<PopCommandResponse> f = session.connect(server, port, 30000, 60000);
-        Assert.assertNotNull(f.get());
+        int c = 0;
+        PopCommandResponse r;
+        Future<PopCommandResponse> f = session.connect(server, port, 30000, 90000);
+
+        c=0;
+        while (c++ < 10) {
+            if (f.isDone()) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+        Assert.assertTrue(f.isDone(), "connect command not done");
+        r = f.get();
+       Assert.assertTrue(r.isOk(), "connect command failed");
+
 
         PopCommand user = new PopCommand(Type.USER);
-        user.addArgs("krinteg1@yahoo.com");
+        user.addArgs("krinteg2@yahoo.com");
         f = session.execute(user);
-        Assert.assertNotNull(f.get());
-        PopCommand pass = new PopCommand(Type.PASS);
-        pass.addArgs("heyTester1");
-        f = session.execute(pass);
-        Assert.assertNotNull(f.get());
-        f = session.execute(new PopCommand(Type.UIDL));
-        System.out.println(f.get().getLines());
 
-        session.disconnect();
+        c=0;
+        while (c++ < 10) {
+            if (f.isDone()) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+        Assert.assertTrue(f.isDone(), "user command not done");
+        r = f.get();
+       Assert.assertTrue(r.isOk(), "user command failed");
+
+        PopCommand pass = new PopCommand(Type.PASS);
+        pass.addArgs("**");
+        f = session.execute(pass);
+        c=0;
+        while (c++ < 10) {
+            if (f.isDone()) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+        Assert.assertTrue(f.isDone(), "pass command not done");
+        r = f.get();
+       Assert.assertTrue(r.isOk(), "pass command failed");
+
+
+
+        f = session.execute(new PopCommand(Type.UIDL));
+        c=0;
+        while (c++ < 10) {
+            if (f.isDone()) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+       // Assert.assertTrue(f.isDone(), "UID command not done");
+         r = f.get();
+        Assert.assertTrue(r.isOk(), "UID command failed");
+
+
+        f = session.execute(new PopCommand(Type.QUIT));
+        c=0;
+        while (c++ < 10) {
+            if (f.isDone()) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+        Assert.assertTrue(f.isDone(), "quit command not done");
+        r = f.get();
+       Assert.assertTrue(r.isOk(), "quit command failed");
     }
 
     @Test(enabled = true)
@@ -169,58 +308,158 @@ public class PopClientIT {
         System.out.println("Testing testUidlListRetr");
         final PopSession session = client.createSession();
 
-        Future<PopCommandResponse> f = session.connect(server, port, 30000, 60000);
-        Assert.assertNotNull(f.get());
+        int c = 0;
+        PopCommandResponse r;
+        Future<PopCommandResponse> f = session.connect(server, port, 30000, 90000);
+
+        c=0;
+        while (c++ < 10) {
+            if (f.isDone()) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+        Assert.assertTrue(f.isDone(), "connect command not done");
+        r = f.get();
+       Assert.assertTrue(r.isOk(), "connect command failed");
+
 
         PopCommand user = new PopCommand(Type.USER);
-        user.addArgs("krinteg1@yahoo.com");
+        user.addArgs("krinteg2@yahoo.com");
         f = session.execute(user);
-        Assert.assertNotNull(f.get());
+
+        c=0;
+        while (c++ < 10) {
+            if (f.isDone()) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+        Assert.assertTrue(f.isDone(), "user command not done");
+        r = f.get();
+       Assert.assertTrue(r.isOk(), "user command failed");
 
         PopCommand pass = new PopCommand(Type.PASS);
-        pass.addArgs("password");
+        pass.addArgs("**");
         f = session.execute(pass);
-        Assert.assertNotNull(f.get());
+        c=0;
+        while (c++ < 10) {
+            if (f.isDone()) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+        Assert.assertTrue(f.isDone(), "pass command not done");
+        r = f.get();
+       Assert.assertTrue(r.isOk(), "pass command failed");
 
         f = session.execute(new PopCommand(Type.UIDL));
+        c=0;
+        while (c++ < 10) {
+            if (f.isDone()) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+        //Assert.assertTrue(f.isDone(), "pass command not done");
+        r = f.get();
+       Assert.assertTrue(r.isOk(), "pass command failed");
         Assert.assertTrue(f.get().getLines().size() > 0);
 
         f = session.execute(new PopCommand(Type.LIST));
+        c=0;
+        while (c++ < 10) {
+            if (f.isDone()) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+        //Assert.assertTrue(f.isDone(), "list command not done");
+        r = f.get();
+       Assert.assertTrue(r.isOk(), "list command failed");
         Assert.assertTrue(f.get().getLines().size() > 0);
 
         PopCommand retrCmd = new PopCommand(Type.RETR);
-        retrCmd.addArgs("1");
+        retrCmd.addArgs("2");
         f = session.execute(retrCmd);
+        c=0;
+        while (c++ < 60) {
+            if (f.isDone()) {
+                break;
+            }
+            Thread.sleep(1000);
+        }
+
+
+        //Assert.assertTrue(f.isDone(), "retr command not done");
+        r = f.get();
+       Assert.assertTrue(r.isOk(), "retr command failed " + r.getLines());
+
         Assert.assertTrue(f.get().getLines().size() > 0);
         System.out.println(f.get().getLines());
 
-        Assert.assertNotNull(session.disconnect());
-        System.out.println("testUidlListRetr DONE");
+
+        f = session.execute(new PopCommand(Type.QUIT));
+        c=0;
+        while (c++ < 10) {
+            if (f.isDone()) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+        Assert.assertTrue(f.isDone(), "quit command not done");
+        r = f.get();
+       Assert.assertTrue(r.isOk(), "quit command failed");
     }
 
-    @Test (expectedExceptions = ExecutionException.class)
+    @Test (expectedExceptions = PopException.class)
     public void testInactivity() throws PopException, InterruptedException, ExecutionException {
 
+        int c;
+        PopCommandResponse r;
         // String server = "localhost";
         // int port = 9995;
         PopSession session = client.createSession();
         Future<PopCommandResponse> f = session.connect(server, port, 1000, 1000);
-        System.out.println("connect sent, waiting on get");
-        if (f.isDone()) {
-            System.out.println("connect sent and done, waiting on get");
-            f.get();
+        c = 0;
+        while (c++ < 10) {
+            if (f.isDone()) {
+                break;
+            }
+            Thread.sleep(100);
         }
-        System.out.println("conntect is complete, sending capa");
-        Future<PopCommandResponse> f2 = session.execute(new PopCommand(PopCommand.Type.CAPA));
-        System.out.println("sent capa, waiting for resp. " + f2);
-        f2.get();
+        Assert.assertTrue(f.isDone(), "connect command not done");
+        r = f.get();
+        Assert.assertTrue(r.isOk(), "connect command failed");
+
+        f = session.execute(new PopCommand(PopCommand.Type.CAPA));
+        c = 0;
+        while (c++ < 10) {
+            if (f.isDone()) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+        Assert.assertTrue(f.isDone(), "capa command not done");
+        r = f.get();
+        Assert.assertTrue(r.isOk(), "capa command failed");
 
         System.out.println("sleeping for 1s");
         Thread.sleep(1000);
         System.out.println("good morning, awake");
 
-       Future <PopCommandResponse> f3 = session.execute(new PopCommand(PopCommand.Type.QUIT));
-       f3.get();
+        f = session.execute(new PopCommand(PopCommand.Type.QUIT));
+        c = 0;
+        while (c++ < 10) {
+            if (f.isDone()) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+        Assert.assertTrue(f.isDone(), "quit command not done");
+        r = f.get();
+        Assert.assertTrue(r.isOk(), "quit command failed");
+
     }
 
 }

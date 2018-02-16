@@ -20,6 +20,7 @@ import com.lafaspot.logfast.logging.LogManager;
 import com.lafaspot.logfast.logging.Logger;
 import com.lafaspot.logfast.logging.Logger.Level;
 import com.lafaspot.pop.command.PopCommand;
+import com.lafaspot.pop.command.PopCommand.Type;
 import com.lafaspot.pop.command.PopCommandResponse;
 import com.lafaspot.pop.exception.PopException;
 import com.lafaspot.pop.session.PopFuture;
@@ -69,7 +70,10 @@ public class PopClientProdIT {
             Assert.assertEquals(name, handlerList[index++]);
             Assert.assertNotNull(entry.getValue());
         }
-        sess.disconnect();
+        f = sess.execute(new PopCommand(Type.QUIT));
+        PopCommandResponse r = f.get();
+        Assert.assertTrue(r.isOk());
+
     }
 
     @Test
