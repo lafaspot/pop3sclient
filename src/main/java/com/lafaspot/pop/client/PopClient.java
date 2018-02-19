@@ -50,17 +50,17 @@ public class PopClient {
     /**
      * Constructor to create a new POP client.
      *
-     * @param threads number of threads to use
+     * @param group the event loop group
      * @param logManager the log manager
      * @throws PopException on failure
      */
-    public PopClient(final int threads, @Nonnull final LogManager logManager) throws PopException {
+    public PopClient(final NioEventLoopGroup group, @Nonnull final LogManager logManager) throws PopException {
 
         LogContext context = new SessionLogContext("PopClient");
         this.logger = logManager.getLogger(context);
 
         this.bootstrap = new Bootstrap();
-        this.group = new NioEventLoopGroup(threads);
+        this.group = group;
         try {
             this.sslContext = SslContextBuilder.forClient().build();
             this.bootstrap.group(this.group);
@@ -69,6 +69,17 @@ public class PopClient {
         } catch (final SSLException e) {
             throw new PopException(PopException.Type.INTERNAL_FAILURE, e);
         }
+    }
+
+    /**
+     * Constructor to create a new POP client.
+     *
+     * @param threads number of threads to use
+     * @param logManager the log manager
+     * @throws PopException on failure
+     */
+    public PopClient(final int threads, @Nonnull final LogManager logManager) throws PopException {
+        this (threads, logManager, new Properties());
     }
 
     /**
